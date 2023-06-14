@@ -1,4 +1,6 @@
-raw <-  read_csv("data_in/RENEW_extract_TL.csv")
+# raw <-  read_csv("data_in/RENEW_extract_TL.csv")
+raw <-  read_csv("BTO/Exploring-TL/data_in/RENEW_extract_TL.csv")
+
 
 # remove dummy numbers
 raw <- select(.data = raw, -...1)
@@ -17,7 +19,7 @@ num_users <-n_distinct(raw$user_code)
 
 # map users to lists
 user_lists <- raw %>% 
-  select(user_code, sub_code) %>% 
+  select(user_code, sub_code, date) %>% 
   distinct()
 
 # counts the amount of lists users have made. from most to least
@@ -37,17 +39,31 @@ user_lists_summary <- merge(user_lists_summary, earliest_latest) %>%
 write_csv(x = user_lists_summary, file = "data_temp/user_summary.csv")
 
 
-# TODO: make a observation chart based on aggregate week??
-# then on month
-# sorted
-dates <- arrange(raw[,"date"])
-total_weeks <- as.integer(ceiling((max_date - min_date) / 7))
+
+  
+# TODO: make sorted?
+dates <- user_lists[["date"]]
+total_months <- as.integer(ceiling(time_length(interval(min_date, max_date), unit="month")))
 
 # empty dataframe
-week_lists <- data.frame(matrix(ncol=2, nrow = total_weeks) )
-# todo: create interval? since it's arranged 
-colnames(week_lists) <- c("Week of", "Count")
+month_lists_count <- data.frame(matrix(ncol=2, nrow = 0))
+colnames(month_lists_count) <- c("month_of", "n")
+month_lists_count$month_of <- dmy(month_lists_count$month_of)
 
 
+add_to_month_list<- function(date) {
+  floored_date <- floor_date(date, unit = "month")
+  # TODO: bugfix - not making new months
+  if(floored_date %in% month_lists_count$month_of) {
+    month_lists_count <<- month_lists_count %>% 
+      filter(month_of==floored_date) %>% 
+      mutate(n=n+1)
+  } else {
+    new_row <-  c(floored_date, 1)
+    month_lists_count <<- month_lists_count %>% 
+      add_row(month_of = floored_date, n = 1)
+  }
+}
 
+lapply(dates[1:1000], FUN = add_to_month_list)
 
