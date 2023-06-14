@@ -37,9 +37,16 @@ user_lists_summary <- merge(user_lists_summary, earliest_latest) %>%
 write_csv(x = user_lists_summary, file = "data_temp/user_summary.csv")
 
 
-# TODO: make a observation chart based on aggregate month??
+# TODO: make a observation chart based on aggregate week??
+# then on month
+# sorted
+dates <- arrange(raw[,"date"])
+total_weeks <- as.integer(ceiling((max_date - min_date) / 7))
 
-dates 
+# empty dataframe
+week_lists <- data.frame(matrix(ncol=2, nrow = total_weeks) )
+# todo: create interval? since it's arranged 
+colnames(week_lists) <- c("Week of", "Count")
 
 
 
