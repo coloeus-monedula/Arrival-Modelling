@@ -1,7 +1,6 @@
 raw <-  read_csv("data_in/RENEW_extract_TL.csv")
 # raw <-  read_csv("BTO/Exploring-TL/data_in/RENEW_extract_TL.csv")
 
-
 # remove dummy numbers
 raw <- select(.data = raw, -...1)
 
@@ -58,7 +57,6 @@ add_to_month_list<- function(date) {
     month_lists_count <<- month_lists_count %>%
       mutate(n=ifelse(month_of==floored_date,n+1,n))
   } else {
-    new_row <-  c(floored_date, 1)
     month_lists_count <<- add_row(month_lists_count, month_of = floored_date, n = 1)
   }
 }
