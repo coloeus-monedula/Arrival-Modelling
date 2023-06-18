@@ -85,10 +85,10 @@ get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
 # given a dataframe with month-count numbers, plots a bar chart 
 # TODO: optional params - zoom into specific date ranges
 plot_barchart <- function(month_list_count, id_code, is_bird = FALSE) {
-  earliest <- head(month_list_count, 1)$month_of
+  earliest <- head(arrange(month_list_count, month_of), 1)$month_of
   # some rows will be NA since not all users do lists regularly
   latest <- head(arrange(month_list_count, desc(month_of)), 1)$month_of
-  
+
   if (is_bird) {
     title <- paste("Number of observations for", id_code, "by month")
     y <-  paste("Number of observations")
