@@ -1,6 +1,8 @@
 raw <-  read_csv("data_in/RENEW_extract_TL.csv")
-# raw <-  read_csv("BTO/Exploring-TL/data_in/RENEW_extract_TL.csv")
 
+
+# CLEANING DATA
+# =====================================
 # remove dummy numbers
 raw <- select(.data = raw, -...1)
 
@@ -16,6 +18,8 @@ max_date <- max(raw$date)
 num_users <-n_distinct(raw$user_code)
 
 
+# CREATING USER LISTS SUMMARY
+# =================================
 # map users to lists
 user_lists <- raw %>% 
   select(user_code, sub_code, date, latitude, longitude) %>% 
@@ -40,6 +44,9 @@ user_lists_summary <- merge(user_lists_summary, earliest_latest) %>%
 
 write_csv(x = user_lists_summary, file = "results/user_summary.csv")
 
+
+# CREATING USER LISTS OVER TIME CHART
+# ============================================
 # turn into vector to do lapply on
 dates <- user_lists[["date"]]
 total_months <- as.integer(ceiling(time_length(interval(min_date, max_date), unit="month")))

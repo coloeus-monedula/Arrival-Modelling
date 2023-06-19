@@ -1,5 +1,4 @@
 # check usercode or bird  exists
-# todo: function that converts into camelcase
 check_id_exists <- function(data_list,id_code,is_bird=FALSE) {
   if (is_bird) {
     if (tolower(id_code) %in% tolower(data_list$english_name)) {
@@ -116,6 +115,7 @@ user <- read_csv("data_temp/user_data.csv")
 u_code <- "u10912"
 
 birds <- read_csv("data_temp/bird_lists.csv")
+# TODO: allow for both english name or scientific name? or just do scientific name?
 bird_name <- "Cetti's Warbler"
 
 # 
