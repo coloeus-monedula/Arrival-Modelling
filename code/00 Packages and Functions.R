@@ -92,9 +92,11 @@ get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
   
 }
 
+
+
 # given a dataframe with month-count numbers, plots a bar chart 
 # TODO: optional params - zoom into specific date ranges
-plot_barchart <- function(month_list_count, id_code, is_bird = FALSE) {
+plot_monthcount_barchart <- function(month_list_count, id_code, is_bird = FALSE) {
   earliest <- head(arrange(month_list_count, month_of), 1)$month_of
   # some rows will be NA since not all users do lists regularly
   latest <- head(arrange(month_list_count, desc(month_of)), 1)$month_of
@@ -107,6 +109,11 @@ plot_barchart <- function(month_list_count, id_code, is_bird = FALSE) {
     y <- "Number of lists"
   }
   
+  plot_barchart(month_list_count, id_code, earliest, latest, title, y)
+  
+}
+
+plot_barchart <- function(month_list_count, id_code, earliest_date, latest_date, title, y) {
   barchart <- ggplot(data = month_list_count, aes(x = month_of, y=n)) +
     geom_col(width =15) +
     labs(title = title,

@@ -12,12 +12,12 @@ bird_name <- "Cuckoo"
 # 
 # (get_summary_info(user, u_code))
 # month_count <-  get_monthly_lists(user, u_code)
-# chart <- plot_barchart(month_count, u_code)
+# chart <- plot_monthcount_barchart(month_count, u_code)
 # chart
 
 (get_summary_info(birds, bird_name, is_bird=TRUE))
 month_count <-  get_monthly_lists(birds, bird_name, TRUE)
-chart <- plot_barchart(month_count, bird_name, TRUE)
+chart <- plot_monthcount_barchart(month_count, bird_name, TRUE)
 chart
 
 write_csv(month_count, file = "data_temp/cuckoo.csv")

@@ -25,6 +25,11 @@ reporting_rate <- data.frame (
   reporting_rate = reporting_rate_num
 )
 
-# TODO: make plot_barchart more generic
-chart <- plot_barchart(reporting_rate,"Cuckoo", TRUE)
-chart
+earliest <- tail(reporting_rate, 1)$month_of
+latest <- head(reporting_rate, 1)$month_of
+chart <- plot_barchart(reporting_rate,"Cuckoo", earliest, latest, 
+                       "Reporting rate for Cuckoo in TL",
+                       "Reporting Rate")
+
+ggsave("results/cuckoo_rate.png", chart, width= 10, height=7)
+
