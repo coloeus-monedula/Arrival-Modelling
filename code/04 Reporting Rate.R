@@ -48,7 +48,7 @@ plot_reportingrate_barchart <- function(reporting_rate, bird_name, location="TL"
   print(earliest)
   print(latest)
   title <- paste("Reporting rate for",bird_name,"in",location)
-  chart <- plot_barchart(reporting_rate,bird_name,earliest,latest, 
+  chart <- plot_barchart(reporting_rate,earliest,latest, 
                          title,"Reporting Rate")
 }
 

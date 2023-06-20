@@ -31,13 +31,12 @@ check_id_exists <- function(data_list,id_code,is_bird=FALSE) {
   }
 }
 
-# given a id_code, 
-# returns date of first list/obs made, date of most recent list/obs made, and total amount of lists/observations
+
 #' Summarises the dataset for a usercode or bird species
 #' 
 #' Displays total amount of lists made bird observations for a given user/bird, as well as earliest list/sighting and latest list/sighting.
 #' @param data_list dataset
-#' @param id_code Usercode or bird species (currently English name) to search for
+#' @param id_code Usercode or bird species (currently English name) to search for. Case insensitive.
 #' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
 #' @return Summary list of earliest_date, latest_date, and n. 
 get_summary_info <- function(data_list, id_code, is_bird=FALSE) {
@@ -60,7 +59,13 @@ get_summary_info <- function(data_list, id_code, is_bird=FALSE) {
 }
 
 
-# given a id_code, returns a dataframe with the number of lists per month user has made
+#' Get observations/list counts by month
+#' 
+#' For a given user/bird, returns the monthly observations or complete lists made.
+#' @param data_list raw dataset
+#' @param id_code Usercode or bird species (currently English name) to search for. Case insensitive.
+#' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
+#' @return Dataframe with columns: month_of and n (where n is count).
 get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
   if (!check_id_exists(data_list, id_code, is_bird)) {
     return(NA)
@@ -103,9 +108,14 @@ get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
 }
 
 
-
-# given a dataframe with month-count numbers, plots a bar chart 
-# TODO: optional params - zoom into specific date ranges
+#' Get month-count barchart
+#' 
+#' Plots a barchart with month on the x axis and absolute count of lists made/observations of bird on the y axis.
+#' 
+#' @param month_list_count Dataframe with month_of and n (n meaning count) for that month.
+#' @param id_code Usercode/Bird species the graph is for
+#' @param is_bird FALSE by default. Set to TRUE to plot bird species.
+#' @return Barchart with month-count for a certain user/bird
 plot_monthcount_barchart <- function(month_list_count, id_code, is_bird = FALSE) {
   earliest <- head(arrange(month_list_count, month_of), 1)$month_of
   # some rows will be NA since not all users do lists regularly
@@ -119,11 +129,20 @@ plot_monthcount_barchart <- function(month_list_count, id_code, is_bird = FALSE)
     y <- "Number of lists"
   }
   
-  plot_barchart(month_list_count, id_code, earliest, latest, title, y)
+  plot_barchart(month_list_count, earliest, latest, title, y)
   
 }
 
-plot_barchart <- function(month_list_count, id_code, earliest_date, latest_date, title, y) {
+#' Plot a barchart with month aggregate data
+#' 
+#' Called from other functions. Plots a barchart with month on the x axis and corresponding data on the y.
+#' @param month_list_count Dataframe with month_of column and another column of data aggregated by month
+#' @param earliest_date Earliest month_of row
+#' @param latest_date Latest month_of row
+#' @param title Title of barchart
+#' @param y y axis label
+#' @return Barchart of monthly data with specified titles and labels
+plot_barchart <- function(month_list_count, earliest_date, latest_date, title, y) {
   barchart <- ggplot(data = month_list_count, aes(x = month_of, y=n)) +
     geom_col(width =15) +
     labs(title = title,
