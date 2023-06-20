@@ -1,4 +1,3 @@
-# todo: most common bird sightings
 # bird views by month
 # similar to 01 file
 
@@ -39,8 +38,8 @@ birds_summary <-merge(birds_summary, earliest_latest) %>%
 
 # some english names have scientific names in brackets afterwards 
 # they then get repeated in the scientific name column
-# this will need to be cleaned
 # also a lot of unknown species
+# this won't be a problem if using taxon ID 
 write_csv(x = birds_summary, file = "results/bird_summary.csv")
 
 

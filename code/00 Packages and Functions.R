@@ -3,13 +3,16 @@ library(dplyr)
 library(lubridate)
 library(ggplot2)
 library(scales)
+library(roxygen2)
 
-
-
-# TODO: MAKE ACTUAL DOCUMENTATION VIA ROXYGEN
-
-
-# check usercode or bird  exists
+#' Check usercode or bird name exists 
+#'
+#' Checking function often used inside other functions to check for validity. Case-insensitive.
+#'
+#' @param data_list raw dataset.
+#' @param id_code Usercode or bird species (currently English name) to search for.
+#' @param is_bird Boolean, default to FALSE. Set true if searching for a bird.
+#' @return TRUE if identifier found, FALSE if not.
 check_id_exists <- function(data_list,id_code,is_bird=FALSE) {
   if (is_bird) {
     if (tolower(id_code) %in% tolower(data_list$english_name)) {
@@ -30,6 +33,13 @@ check_id_exists <- function(data_list,id_code,is_bird=FALSE) {
 
 # given a id_code, 
 # returns date of first list/obs made, date of most recent list/obs made, and total amount of lists/observations
+#' Summarises the dataset for a usercode or bird species
+#' 
+#' Displays total amount of lists made bird observations for a given user/bird, as well as earliest list/sighting and latest list/sighting.
+#' @param data_list dataset
+#' @param id_code Usercode or bird species (currently English name) to search for
+#' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
+#' @return Summary list of earliest_date, latest_date, and n. 
 get_summary_info <- function(data_list, id_code, is_bird=FALSE) {
   if (!check_id_exists(data_list, id_code, is_bird)) {
     return(NA)
@@ -123,7 +133,7 @@ plot_barchart <- function(month_list_count, id_code, earliest_date, latest_date,
           axis.text.x = element_text(angle=270)) +
     scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
     scale_x_date(date_labels = "%b '%y", 
-                 breaks = seq(earliest, latest, by = "month"), 
+                 breaks = seq(earliest_date, latest_date, by = "month"), 
                  limits=ymd(c("2016/12/01", "2023/01/01")),
                  expand = c(0, 0))
 }

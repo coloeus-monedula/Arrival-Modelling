@@ -57,7 +57,6 @@ colnames(month_lists_count) <- c("month_of", "n")
 month_lists_count$month_of <- dmy(month_lists_count$month_of)
 
 
-# TODO: refactor to allow this to be user-specific?
 add_to_month_list<- function(date) {
   floored_date <- floor_date(date, unit = "month")
   if(floored_date %in% month_lists_count$month_of) {
@@ -72,6 +71,7 @@ lapply(dates, FUN = add_to_month_list)
 month_lists_count <- arrange(month_lists_count, month_of)
 write_csv(x = month_lists_count, file = "results/lists_by_month.csv")
 
+#plot the chart
 TL_lists <- ggplot(data = month_lists_count, aes(x = month_of, y=n)) +
   geom_col() +
   labs(title = "Number of complete lists made in TL by month",
