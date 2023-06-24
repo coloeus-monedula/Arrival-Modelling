@@ -38,8 +38,6 @@ width <- max_long - min_long
 map_box <- c(bottom = min_lat - margin*height, left = min_long - margin*width,
          top = max_lat + margin*height, right = max_long + margin*width)
 
-map <- get_stamenmap(map_box, zoom=10, maptype="terrain")
-
 # CREATING SHAPEFILE
 # get outermost longlat coords of the points, create a box
 # padding to adjust grid if needed
@@ -66,36 +64,12 @@ grid_res <- 10000
 outvarname <- "square_id"
 grid <- create_grid_for_object(sp_object = box_coords, grid_resolution = grid_res, region="GB", outvarname = outvarname)
 
-# transform back to plot
-grid_degrees <- st_transform(grid, crs=4326)
-
 # turn points into sf
 bird_obs_sp <- st_as_sf(bird_obs, coords = c("longitude", "latitude"), crs=4326)
 
 # needs to be done with pipeline, otherwise the transform doesn't stick for some reason
 bird_obs_sp <-bird_obs_sp %>% 
   st_transform(27700)
-
-# map <- st_transform(map, value=27700)
-
-# https://stackoverflow.com/questions/47749078/how-to-put-a-geom-sf-produced-map-on-top-of-a-ggmap-produced-raster
-# https://stackoverflow.com/questions/74733975/setting-crs-for-plotting-with-stamenmaps
-
-# inherit.aes = FALSE needed to avoid compatibility issues
-# see https://github.com/r-spatial/sf/issues/336 
-# ggmap(map) +
-#   geom_sf(data=grid, col="red", fill="NA", inherit.aes = FALSE)+
-#   geom_sf(data = bird_obs_sp, aes(col=date), inherit.aes = FALSE)+
-#   scale_color_date(low="#90CAF97F", high="#1565C0") +
-#   labs(title = "Locations of complete lists with Cuckoo sightings")
-  
-
-
-
-# mymap <- ggplot() +
-#   geom_sf(data=grid, col="red", fill="NA") +
-#   geom_sf(data=bird_obs_sp, aes(col=date))
-# mymap  
 
 bird_obs_sp_grid <- st_join(grid,bird_obs_sp)
 
@@ -111,8 +85,31 @@ birds_per_grid <- bird_obs_sp_grid %>%
 # names(birds_per_grid) <- c('centroid_x', 'centroid_y', 'num_birds')
 birds_per_grid <- st_as_sf(birds_per_grid, coords=geometry, crs=27700)
 
+# todo: the coloured squares are almost always smaller than the actual grid?
+# also todo: test previous func on different bird data
 mymap <- ggplot() +
   geom_sf(data=grid, col="red", fill="NA") +
   geom_sf(data = birds_per_grid, aes(fill = num_birds)) +
-  geom_sf(data=bird_obs_sp, aes(col=date))
+  geom_sf(data=bird_obs_sp, col="#f3f6f440", size=0.5, )
 mymap
+
+
+# https://stackoverflow.com/questions/47749078/how-to-put-a-geom-sf-produced-map-on-top-of-a-ggmap-produced-raster
+# https://stackoverflow.com/questions/74733975/setting-crs-for-plotting-with-stamenmaps
+
+# convert back to 4326 to plot with basemap
+birds_per_grid_degrees <- st_transform(birds_per_grid, crs = 4326)
+bird_obs_sp_degrees <- st_transform(bird_obs_sp, crs=4326)
+grid_degrees <- st_transform(grid, crs=4326)
+
+
+map <- get_stamenmap(map_box, zoom=10, maptype="toner-lite")
+
+# inherit.aes = FALSE needed to avoid compatibility issues
+# see https://github.com/r-spatial/sf/issues/336 
+ggmap(map) +
+  geom_sf(data=grid_degrees, col="red", fill="NA", inherit.aes = FALSE)+
+  geom_sf(data = birds_per_grid_degrees, aes(fill = num_birds), inherit.aes = FALSE, alpha=0.8) +
+  geom_sf(data=bird_obs_sp_degrees, fill="#353636", size=1, inherit.aes = FALSE, alpha=0.5) +
+  scale_fill_gradient(low = "#f6c9bb", high = "#cc0000" )+
+  labs(title = "Locations of complete lists with Cuckoo sightings")
