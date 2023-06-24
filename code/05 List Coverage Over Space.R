@@ -1,6 +1,3 @@
-# TODO: longlat mapping for bird species?
-# idea is to create a heatmap
-
 library(BTOTools)
 library(readr)
 library(dplyr)
@@ -79,7 +76,7 @@ bird_obs_sp <- st_as_sf(bird_obs, coords = c("longitude", "latitude"), crs=4326)
 bird_obs_sp <-bird_obs_sp %>% 
   st_transform(27700)
 
-map <- st_transform(map, value=27700)
+# map <- st_transform(map, value=27700)
 
 # https://stackoverflow.com/questions/47749078/how-to-put-a-geom-sf-produced-map-on-top-of-a-ggmap-produced-raster
 # https://stackoverflow.com/questions/74733975/setting-crs-for-plotting-with-stamenmaps
@@ -95,29 +92,27 @@ map <- st_transform(map, value=27700)
 
 
 
+# mymap <- ggplot() +
+#   geom_sf(data=grid, col="red", fill="NA") +
+#   geom_sf(data=bird_obs_sp, aes(col=date))
+# mymap  
+
+bird_obs_sp_grid <- st_join(grid,bird_obs_sp)
+
+# filters out empty/no bird sighting squares then counts the remaining squares
+birds_per_grid <- bird_obs_sp_grid %>% 
+  filter(!is.na(date)) %>% 
+  count(geometry) %>% 
+  rename(num_birds = n)
+  
+# should be same as number of rows of og dataframe ie. bird_obs_sp_grid
+(sum(birds_per_grid$num_birds))
+
+# names(birds_per_grid) <- c('centroid_x', 'centroid_y', 'num_birds')
+birds_per_grid <- st_as_sf(birds_per_grid, coords=geometry, crs=27700)
+
 mymap <- ggplot() +
   geom_sf(data=grid, col="red", fill="NA") +
+  geom_sf(data = birds_per_grid, aes(fill = num_birds)) +
   geom_sf(data=bird_obs_sp, aes(col=date))
-mymap  
-
-bird_obs_sp_grid <- st_join(bird_obs_sp, grid)
-
-# TODO: change aggregate func
-birds_per_grid <- aggregate(data=bird_obs_sp_grid, date ~ centroid_x + centroid_y, NROW)
-names(birds_per_grid) <- c('centroid_x', 'centroid_y', 'num_birds')
-birds_per_grid <- st_as_sf(birds_per_grid, coords=c('centroid_x', 'centroid_y'), crs=27700)
-
-mymap <- mymap +
-  geom_sf(data = birds_per_grid, aes(size = num_birds))
 mymap
-# # TODO: FIGURE OUT WHY BIRD DATAPOINTS AREN'T CONVERTING
-# fixes <- data.frame(bird = c('A', 'A', 'B'),
-#                     longitude = c(0.8050507, 0.7604488, -0.0608279),
-#                     latitude = c(56.089, 56.091, 56.084))
-# #make spatial
-# fixes_sp <- st_as_sf(fixes, coords = c('longitude', 'latitude'))
-# print(fixes_sp)
-# fixes_sp <- st_set_crs(fixes_sp, value = 4326)
-# st_crs(fixes_sp)
-# fixes_sp <- st_transform(fixes_sp, 27700)
-# st_crs(fixes_sp)
