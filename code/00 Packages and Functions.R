@@ -156,3 +156,6 @@ plot_barchart <- function(month_list_count, earliest_date, latest_date, title, y
                  limits=ymd(c("2016/12/01", "2023/01/01")),
                  expand = c(0, 0))
 }
+
+
+# TODO: functions for creating data_temp files?

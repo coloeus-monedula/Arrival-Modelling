@@ -60,3 +60,5 @@ chart
 
 ggsave("results/cuckoo_rate.png", chart, width= 10, height=7)
 
+
+# TODO: test on different bird datas
