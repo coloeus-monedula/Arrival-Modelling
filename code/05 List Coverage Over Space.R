@@ -65,33 +65,22 @@ grid_res <- 10000
 outvarname <- "square_id"
 grid <- create_grid_for_object(sp_object = box_coords, grid_resolution = grid_res, region="GB", outvarname = outvarname)
 
+bird_obs_10km <- add_10km_gridref(bird_obs, invar = "grid_ref")
+birds_per_grid <- bird_obs_10km %>%
+  count(tenkm) %>%
+  rename(num_birds = n, square_id = tenkm)
 
-arrangeds <- add_10km_gridref(bird_obs, invar = "grid_ref")
-# 
-# # turn points into sf
-# bird_obs_sp <- st_as_sf(bird_obs, coords = c("longitude", "latitude"), crs=4326)
-# 
-# # needs to be done with pipeline, otherwise the transform doesn't stick for some reason
-# bird_obs_sp <-bird_obs_sp %>% 
-#   st_transform(27700)
-# 
-# bird_obs_sp_grid <- st_join(grid,bird_obs_sp)
-# 
-# # filters out empty/no bird sighting squares then counts the remaining squares
-# birds_per_grid <- bird_obs_sp_grid %>% 
-#   filter(!is.na(date)) %>% 
-#   count(geometry) %>% 
-#   rename(num_birds = n)
-#   
-# # sanity check: should be same as number of rows of og dataframe ie. bird_obs_sp
-# print("Sanity check for count numbers:")
-# print(sum(birds_per_grid$num_birds) == nrow(bird_obs_sp))
+print("Sanity check for count numbers:")
+print(sum(birds_per_grid$num_birds) == nrow(bird_obs))
 
+# add geometry of squares
+birds_per_grid <- merge(birds_per_grid, select(grid, c("square_id","geometry")), by = "square_id")
 
-birds_per_grid <- st_as_sf(birds_per_grid, coords=geometry, crs=27700)
+# convert to sf obj for plotting
+birds_per_grid_sp <- st_sf(grid_ref=birds_per_grid$square_id, num_birds=birds_per_grid$num_birds, geometry = birds_per_grid$geometry, crs = 27700)
 
 # convert back to 4326 to plot with basemap
-birds_per_grid_degrees <- st_transform(birds_per_grid, crs = 4326)
+birds_per_grid_degrees <- st_transform(birds_per_grid_sp, crs = 4326)
 bird_obs_sp_degrees <- st_transform(bird_obs_sp, crs=4326)
 grid_degrees <- st_transform(grid, crs=4326)
 
