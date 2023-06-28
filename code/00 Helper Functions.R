@@ -1,9 +1,8 @@
 library(readr)
 library(dplyr)
 library(lubridate)
-library(ggplot2)
-library(scales)
 library(roxygen2)
+library(BTOTools)
 
 #' Check usercode or bird name exists 
 #'
@@ -108,54 +107,44 @@ get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
 }
 
 
-#' Get month-count barchart
-#' 
-#' Plots a barchart with month on the x axis and absolute count of lists made/observations of bird on the y axis.
-#' 
-#' @param month_list_count Dataframe with month_of and n (n meaning count) for that month.
-#' @param id_code Usercode/Bird species the graph is for
-#' @param is_bird FALSE by default. Set to TRUE to plot bird species.
-#' @return Barchart with month-count for a certain user/bird
-plot_monthcount_barchart <- function(month_list_count, id_code, is_bird = FALSE) {
-  earliest <- head(arrange(month_list_count, month_of), 1)$month_of
-  # some rows will be NA since not all users do lists regularly
-  latest <- head(arrange(month_list_count, desc(month_of)), 1)$month_of
-  
-  if (is_bird) {
-    title <- paste("Number of observations for", id_code, "by month")
-    y <-  paste("Number of observations")
-  } else {
-    title <-paste("Number of complete lists made by", id_code, "by month")
-    y <- "Number of lists"
-  }
-  
-  plot_barchart(month_list_count, earliest, latest, title, y)
-  
-}
-
-#' Plot a barchart with month aggregate data
-#' 
-#' Called from other functions. Plots a barchart with month on the x axis and corresponding data on the y.
-#' @param month_list_count Dataframe with month_of column and another column of data aggregated by month
-#' @param earliest_date Earliest month_of row
-#' @param latest_date Latest month_of row
-#' @param title Title of barchart
-#' @param y y axis label
-#' @return Barchart of monthly data with specified titles and labels
-plot_barchart <- function(month_list_count, earliest_date, latest_date, title, y) {
-  barchart <- ggplot(data = month_list_count, aes(x = month_of, y=n)) +
-    geom_col(width =15) +
-    labs(title = title,
-         x = "Date by month",
-         y= y) +
-    theme(plot.title = element_text(hjust = 0.5),
-          axis.text.x = element_text(angle=270)) +
-    scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
-    scale_x_date(date_labels = "%b '%y", 
-                 breaks = seq(earliest_date, latest_date, by = "month"), 
-                 limits=ymd(c("2016/12/01", "2023/01/01")),
-                 expand = c(0, 0))
-}
-
-
 # TODO: functions for creating data_temp files?
+
+# adds a 10km square reference to a raw dataset
+# invar is the column which has the grid reference
+add_10km_gridref <- function(df, invar) {
+  arranged <- df %>% 
+    arrange(desc(nchar(df[[invar]]))) %>% 
+    mutate(
+      # for slicing purposes
+      row_num = row_number()
+    )
+  
+  
+  # find last index that is 1km reference
+  # need to do this way because fetching row indexes dynamically in mutate and case_when doesn't work
+  last_1km_row <- arranged %>% 
+    filter(nchar(arranged[[invar]]) == 6) %>% 
+    tail(n = 1) 
+  
+  # add 10km grid reference column for 1km
+  # need to convert to data.frame if using tibbles - there is some strangeness in the 1 to 10km func
+  onekm <- rescale_1km_to_10km(as.data.frame(arranged[1:last_1km_row$row_num,]), "grid_ref")
+  
+  # pads the end of the tenkm list with NAs
+  arranged <- cbind(arranged, tenkm=onekm$tenkm[seq(nrow(arranged))])
+  
+  # adding the rest for 2km and 10km
+  arranged <- arranged %>% 
+    mutate(
+      tenkm = case_when(
+        #10km - keep as is
+        nchar(arranged[[invar]]) == 4 ~ grid_ref,
+        #tetrads - just extract the first 4 letters to get 10km ref
+        nchar(arranged[[invar]])== 5 ~ substring(invar, 1, 4),
+        #keeping the 1km to 10km references
+        TRUE ~tenkm
+      )
+    ) %>% 
+    #removes row_num col
+    select(-row_num) 
+}

@@ -4,6 +4,8 @@ library(dplyr)
 library(ggmap)
 library(sf)
 
+source("code/00 Helper Functions.R")
+
 
 # SELECTING SPECIFIC BIRD OBSERVATIONS
 # ===========================================
@@ -59,29 +61,32 @@ box_coords <- st_sfc(box, crs=4326)
 box_coords <- st_transform(box_coords, crs=27700)
 
 # in metres
-# NOTE: if there is a grid ref this doesn't have to be done
 grid_res <- 10000
 outvarname <- "square_id"
 grid <- create_grid_for_object(sp_object = box_coords, grid_resolution = grid_res, region="GB", outvarname = outvarname)
 
-# turn points into sf
-bird_obs_sp <- st_as_sf(bird_obs, coords = c("longitude", "latitude"), crs=4326)
 
-# needs to be done with pipeline, otherwise the transform doesn't stick for some reason
-bird_obs_sp <-bird_obs_sp %>% 
-  st_transform(27700)
+arrangeds <- add_10km_gridref(bird_obs, invar = "grid_ref")
+# 
+# # turn points into sf
+# bird_obs_sp <- st_as_sf(bird_obs, coords = c("longitude", "latitude"), crs=4326)
+# 
+# # needs to be done with pipeline, otherwise the transform doesn't stick for some reason
+# bird_obs_sp <-bird_obs_sp %>% 
+#   st_transform(27700)
+# 
+# bird_obs_sp_grid <- st_join(grid,bird_obs_sp)
+# 
+# # filters out empty/no bird sighting squares then counts the remaining squares
+# birds_per_grid <- bird_obs_sp_grid %>% 
+#   filter(!is.na(date)) %>% 
+#   count(geometry) %>% 
+#   rename(num_birds = n)
+#   
+# # sanity check: should be same as number of rows of og dataframe ie. bird_obs_sp
+# print("Sanity check for count numbers:")
+# print(sum(birds_per_grid$num_birds) == nrow(bird_obs_sp))
 
-bird_obs_sp_grid <- st_join(grid,bird_obs_sp)
-
-# filters out empty/no bird sighting squares then counts the remaining squares
-birds_per_grid <- bird_obs_sp_grid %>% 
-  filter(!is.na(date)) %>% 
-  count(geometry) %>% 
-  rename(num_birds = n)
-  
-# sanity check: should be same as number of rows of og dataframe ie. bird_obs_sp
-print("Sanity check for count numbers:")
-print(sum(birds_per_grid$num_birds) == nrow(bird_obs_sp))
 
 birds_per_grid <- st_as_sf(birds_per_grid, coords=geometry, crs=27700)
 
