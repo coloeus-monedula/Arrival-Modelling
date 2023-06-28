@@ -111,6 +111,7 @@ get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
 
 # adds a 10km square reference to a raw dataset
 # invar is the column which has the grid reference
+# returns in sorted by nchar order
 add_10km_gridref <- function(df, invar) {
   arranged <- df %>% 
     arrange(desc(nchar(df[[invar]]))) %>% 
@@ -138,9 +139,9 @@ add_10km_gridref <- function(df, invar) {
     mutate(
       tenkm = case_when(
         #10km - keep as is
-        nchar(arranged[[invar]]) == 4 ~ grid_ref,
+        nchar(arranged[[invar]]) == 4 ~ arranged[[invar]],
         #tetrads - just extract the first 4 letters to get 10km ref
-        nchar(arranged[[invar]])== 5 ~ substring(invar, 1, 4),
+        nchar(arranged[[invar]])== 5 ~ substring(arranged[[invar]], 1, 4),
         #keeping the 1km to 10km references
         TRUE ~tenkm
       )
