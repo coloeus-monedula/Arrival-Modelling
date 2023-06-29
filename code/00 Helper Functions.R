@@ -119,8 +119,7 @@ add_10km_gridref <- function(df, invar) {
       # for slicing purposes
       row_num = row_number()
     )
-  
-  
+
   # find last index that is 1km reference
   # need to do this way because fetching row indexes dynamically in mutate and case_when doesn't work
   last_1km_row <- arranged %>% 
@@ -148,3 +147,6 @@ add_10km_gridref <- function(df, invar) {
     #removes row_num col
     select(-row_num) 
 }
+
+
+
