@@ -68,7 +68,8 @@ grid <- create_grid_for_object(sp_object = box_coords, grid_resolution = grid_re
 bird_obs_10km <- add_10km_gridref(bird_obs, invar = "grid_ref")
 birds_per_grid <- bird_obs_10km %>%
   count(tenkm) %>%
-  rename(num_birds = n, square_id = tenkm)
+  rename(num_birds = n, square_id = tenkm) %>% 
+  arrange(square_id)
 
 print("Sanity check for count numbers:")
 print(sum(birds_per_grid$num_birds) == nrow(bird_obs))
@@ -76,66 +77,57 @@ print(sum(birds_per_grid$num_birds) == nrow(bird_obs))
 # add geometry of squares
 birds_per_grid <- merge(birds_per_grid, select(grid, c("square_id","geometry")), by = "square_id")
 
-# convert to sf obj for plotting
-birds_per_grid_sp <- st_sf(grid_ref=birds_per_grid$square_id, num_birds=birds_per_grid$num_birds, geometry = birds_per_grid$geometry, crs = 27700)
-
-# convert back to 4326 to plot with basemap
-birds_per_grid_degrees <- st_transform(birds_per_grid_sp, crs = 4326)
-bird_obs_sp_degrees <- st_transform(bird_obs_sp, crs=4326)
-grid_degrees <- st_transform(grid, crs=4326)
-
-#basemap
-map <- get_stamenmap(map_box, zoom=10, maptype="toner-lite")
-
-
 
 # REPORTING RATE
 # ====================================================
 # for now uses data prefiltered to show total lists
 lists <-  read_csv("data_temp/user_data.csv")
-lists_sp <- st_as_sf(lists, coords=c("longitude", "latitude"), crs = 4326 )
-# TODO: account for fact some squares will have lists but not bird sighting
 
-lists_sp <-  lists_sp %>%
-  st_transform(crs=27700)
+lists_10km <- lists %>% 
+  select(date,grid_ref) %>% 
+  add_10km_gridref(invar = "grid_ref")
 
-# grid first because we want the geometry squares
-lists_sp_grid <- st_join(grid, lists_sp)
+# now count and arrange the same way as birds_per_grid
+lists_per_grid <- lists_10km %>% 
+  count(tenkm) %>% 
+  rename(num_lists = n, square_id = tenkm) %>% 
+  arrange(square_id)
 
-
-# TODO: rejig so users also has grid ref? or just add square_id to it assuming they're equal
-
-
-# filters so only rows with polygons that are in the bird_obs dataframe is included
-# TODO: also filter so you make it so that background lists are only done for arrival period for migrating species
-# ie. max arrival/departure time?
-# this may need a func to figure out arrival and departure times/analysis
-# or have an arbitrary cutoff point eg need to be above 100 lists
-
-patterns <- birds_per_grid$geometry
-lists_sp_grid <- lists_sp_grid %>%
-  filter(grepl(paste(patterns, collapse = "|"), geometry))
-
-
-# now count
-lists_per_grid <- lists_sp_grid %>% 
-  filter(!is.na(sub_code)) %>% 
-  count(geometry) %>% 
-  rename(num_lists = n)
-
-
+reporting_rate <- data.frame(
+  grid_ref = birds_per_grid$square_id,
+  geometry = birds_per_grid$geometry,
+  reporting_rate = birds_per_grid$num_birds/lists_per_grid$num_lists
+)
 
 
 
 # PLOTTING
 # ===========================================
+
+
+# convert to sf obj for plotting
+bird_obs_sp <- st_as_sf(bird_obs, coords=c("longitude","latitude"), crs=4326)
+birds_per_grid_sp <- st_sf(birds_per_grid, crs = 27700)
+birds_per_grid_sp <- rename(birds_per_grid_sp, grid_ref = square_id)
+reporting_rate_sp <- st_sf(reporting_rate, crs = 27700)
+
+
+# convert back to 4326 to plot with basemap
+birds_per_grid_degrees <- st_transform(birds_per_grid_sp, crs = 4326)
+grid_degrees <- st_transform(grid, crs=4326)
+reporting_rate_degrees <- st_transform(reporting_rate_sp, crs=4326)
+
+#basemap
+map <- get_stamenmap(map_box, zoom=10, maptype="toner-lite")
+
+
 # inherit.aes = FALSE needed to avoid compatibility issues
 # see https://github.com/r-spatial/sf/issues/336 
 plot <- ggmap(map) +
-  geom_sf(data = birds_per_grid_degrees, aes(fill = num_birds), inherit.aes = FALSE, alpha=0.8, col="NA") +
-  geom_sf(data=bird_obs_sp_degrees, fill="#353636", size=0.7, inherit.aes = FALSE, alpha=0.5) +
+  geom_sf(data = reporting_rate_degrees, aes(fill = reporting_rate), inherit.aes = FALSE, alpha=0.8, col="NA") +
+  geom_sf(data=bird_obs_sp, fill="#353636", size=0.7, inherit.aes = FALSE, alpha=0.5) +
   geom_sf(data=grid_degrees, col="#e60000", fill="NA", inherit.aes = FALSE)+
-  scale_fill_gradient(low = "#f6c9bb", high = "#cc0000", name="Complete lists" )+
+  scale_fill_gradient(low = "#f6c9bb", high = "#cc0000", name="Complete lists/Reporting Rate" )+
   labs(title = paste("Locations of complete lists with", bird_name, "sightings in TL region"), subtitle = "Using 10km squares", x="Latitude", y="Longitude")
 
 plot

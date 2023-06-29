@@ -128,8 +128,7 @@ add_10km_gridref <- function(df, invar) {
     tail(n = 1) 
   
   # add 10km grid reference column for 1km
-  # need to convert to data.frame if using tibbles - there is some strangeness in the 1 to 10km func
-  onekm <- rescale_1km_to_10km(as.data.frame(arranged[1:last_1km_row$row_num,]), "grid_ref")
+  onekm <- rescale_1km_to_10km(arranged[1:last_1km_row$row_num,], "grid_ref")
   
   # pads the end of the tenkm list with NAs
   arranged <- cbind(arranged, tenkm=onekm$tenkm[seq(nrow(arranged))])

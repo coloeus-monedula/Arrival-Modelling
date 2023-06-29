@@ -1,3 +1,7 @@
+library(readr)
+library(dplyr)
+library(lubridate)
+
 raw <-  read_csv("data_in/RENEW_extract_TL.csv")
 
 
@@ -22,7 +26,7 @@ num_users <-n_distinct(raw$user_code)
 # =================================
 # map users to lists
 user_lists <- raw %>% 
-  select(user_code, sub_code, date, latitude, longitude) %>% 
+  select(user_code, sub_code, date, latitude, longitude, grid_ref) %>% 
   distinct()
 
 # save to temp data
