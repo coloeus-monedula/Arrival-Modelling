@@ -12,7 +12,7 @@ source("code/00 Packages and Functions.R")
 #' @param bird_list Dataframe with columns: month of observation ("month_of") and bird count for that month ("n").
 #' @param total_lists Dataframe with columns: month of complete list made ("month_of") and total complete lists made ("n").
 #' @return A Dataframe with columns: month of reporting rate ("month_of") and reporting rate for a bird species ("reporting_rate").
-create_reporting_rate <- function(bird_list, total_lists)  {
+get_reportingrate_time <- function(bird_list, total_lists)  {
   # removing NAs and arranging by date
   bird_list <- bird_list %>% 
     filter(!is.na(month_of)) %>% 
@@ -54,7 +54,7 @@ plot_reportingrate_barchart <- function(reporting_rate, bird_name, location="TL"
 
 complete_lists <- read_csv("results/lists_by_month.csv")
 cuckoo <- read_csv("data_temp/cuckoo.csv")
-reporting_rate <- create_reporting_rate(cuckoo,complete_lists)
+reporting_rate <- get_reportingrate_time(cuckoo,complete_lists)
 chart <- plot_reportingrate_barchart(reporting_rate, "Cuckoo")
 chart
 
