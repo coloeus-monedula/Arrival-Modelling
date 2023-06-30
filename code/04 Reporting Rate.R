@@ -1,6 +1,7 @@
 # uses the total amount of lists by month to get reporting rate for a bird species
 
-source("code/00 Packages and Functions.R")
+source("code/00 Graphing Functions.R")
+source("code/00 Helper Functions.R")
 
 
 #' Create reporting rate dataframe
@@ -61,4 +62,7 @@ chart
 ggsave("results/cuckoo_rate.png", chart, width= 10, height=7)
 
 
+
+test <- plot_yearly_linechart(reporting_rate, "month_of", "Reporting rate for Cuckoo", "Reporting rate" )
+test
 # TODO: test on different bird datas

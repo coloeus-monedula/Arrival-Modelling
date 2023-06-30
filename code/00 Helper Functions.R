@@ -107,7 +107,10 @@ get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
 }
 
 
-# TODO: functions for creating data_temp files?
+ # TODO: create variable aggregating func eg. can aggregate by week or month etc.
+# probably will have to specify column with stuff in
+
+
 
 # adds a 10km square reference to a raw dataset
 # invar is the column which has the grid reference
