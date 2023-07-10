@@ -47,7 +47,6 @@ plot_barchart <- function(time_aggregates, earliest_date, latest_date, title, y)
     scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
     scale_x_date(date_labels = "%b '%y", 
                  date_breaks = "month", 
-                 limits=NA,
                  expand = c(0, 0))
 }
 
@@ -66,10 +65,9 @@ plot_yearly_linechart <- function(time_aggregates, invar, title, y) {
   # insert an additional year to get the latest year's range
   years[[length(years)+1]] <- years[[length(years)]] + 1
   linechart <- ggplot(data = time_aggregates, aes(x=month, y=n, group=year, colour=cut(year, breaks=years, right = FALSE))) +
-    geom_line() +
+    geom_line(linewidth=1) +
     labs(title=title, x="Month", y=y, colour="Year") +
-    scale_fill_brewer(name="Year", type="qual", palette = "Spectral") +
-    theme_minimal()
+    scale_fill_brewer(name="Year", type="qual", palette = "Spectral") 
   
 }
 

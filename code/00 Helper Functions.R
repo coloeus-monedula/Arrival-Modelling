@@ -109,6 +109,47 @@ get_monthly_lists <- function(data_list, id_code, is_bird=FALSE) {
 
  # TODO: create variable aggregating func eg. can aggregate by week or month etc.
 # probably will have to specify column with stuff in
+# ?ceiling_date has instructions for what can be added to unit
+get_interval_lists <- function(data_list, id_code, is_bird=FALSE) {
+  if (!check_id_exists(data_list, id_code, is_bird)) {
+    return(NA)
+  }
+  
+  if (is_bird) {
+    single_id_list <- data_list %>% 
+      filter(tolower(english_name) == tolower(id_code))
+  } else {
+    single_id_list <- data_list %>% 
+      filter(tolower(user_code) == tolower(id_code))
+  }
+  
+  summary_info <- get_summary_info(data_list, id_code, is_bird)
+  # finds months between first bird list and last bird list, rounded up
+  total_months <- as.integer(ceiling(time_length(
+    interval(summary_info$earliest_date,summary_info$latest_date), unit="month")))
+  
+  # init new dataframe
+  # amount of rows = maximum possible months
+  month_list_count <- data.frame(month_of = rep(NA, total_months), n = rep(0, total_months))
+  # change to date format
+  month_list_count$month_of <- dmy(month_list_count$month_of)
+  
+  # counter for adding to month list - tracks latest index
+  counter <- 1
+  for (i in 1:nrow(single_id_list)) {
+    floored_date <- floor_date(single_id_list[i,]$date, unit = "month")
+    
+    if(floored_date %in% month_list_count$month_of) {
+      month_list_count <- month_list_count %>%
+        mutate(n=ifelse(month_of==floored_date,n+1,n))
+    } else {
+      month_list_count[counter,] <- c(month_of = floored_date, n = 1)
+      counter <- counter + 1
+    }
+  }
+  return(month_list_count)
+  
+}
 
 
 

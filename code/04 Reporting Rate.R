@@ -46,23 +46,23 @@ get_reportingrate_time <- function(bird_list, total_lists)  {
 plot_reportingrate_barchart <- function(reporting_rate, bird_name, location="TL") {
   earliest <- tail(reporting_rate, 1)$month_of
   latest <- head(reporting_rate, 1)$month_of
-  print(earliest)
-  print(latest)
+  print(typeof)
   title <- paste("Reporting rate for",bird_name,"in",location)
   chart <- plot_barchart(reporting_rate,earliest,latest, 
                          title,"Reporting Rate")
 }
 
 complete_lists <- read_csv("results/lists_by_month.csv")
-cuckoo <- read_csv("data_temp/cuckoo.csv")
-reporting_rate <- get_reportingrate_time(cuckoo,complete_lists)
-chart <- plot_reportingrate_barchart(reporting_rate, "Cuckoo")
+bird <- read_csv("data_temp/cettiwarbler.csv")
+reporting_rate <- get_reportingrate_time(bird,complete_lists)
+chart <- plot_reportingrate_barchart(reporting_rate, "Cetti's Warbler")
 chart
 
-ggsave("results/cuckoo_rate.png", chart, width= 10, height=7)
+ggsave("results/cettiswarbler_rate.png", chart, width= 10, height=7)
 
 
 
-test <- plot_yearly_linechart(reporting_rate, "month_of", "Reporting rate for Cuckoo", "Reporting rate" )
+test <- plot_yearly_linechart(reporting_rate, "month_of", "Reporting rate for Cetti's Warbler", "Reporting rate" )
 test
+ggsave("results/cettiwarbler_rate_yearly.png", test, width= 10, height=7)
 # TODO: test on different bird datas
