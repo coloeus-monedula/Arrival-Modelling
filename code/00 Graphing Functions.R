@@ -6,7 +6,7 @@ library(scales)
 #' 
 #' Plots a barchart with interval on the x axis (date breaks split by month) and absolute count of lists made/observations of bird on the y axis.
 #' 
-#' @param interval_list_count Dataframe with intveral and n (n meaning count) for that month.
+#' @param interval_list_count Dataframe with interval and column called "n" (n meaning count) for that interval.
 #' @param invar Column with intervals
 #' @param interval Length of the interval (eg. week, month etc.)
 #' @param id_code Usercode/Bird species the graph is for
@@ -32,7 +32,7 @@ plot_interval_barchart <- function(interval_list_count,invar, interval, id_code,
 #' Plot a barchart with interval aggregate data
 #' 
 #' Called from other functions. Plots a barchart with month on the x axis and corresponding data on the y.
-#' @param time_aggregates Dataframe with interval column and another column of data aggregated by month
+#' @param time_aggregates Dataframe with interval column and another column of data aggregated by an interval (called "n")
 #' @param invar Column with date data
 #' @param earliest_date Earliest interval row
 #' @param latest_date Latest interval row
@@ -60,17 +60,14 @@ plot_yearly_linechart <- function(time_aggregates, invar, title, y) {
   time_aggregates <-  time_aggregates %>% 
     mutate(year = year(time_aggregates[[invar]]), monthday = format(as.Date(time_aggregates[[invar]]), "%m-%d")) %>% 
     arrange(year)
-
-  num_years <- length(unique(time_aggregates$year))
-  colours <- RColorBrewer::brewer.pal(num_years, "Spectral")
   
   # turn into factor so graph recognises year as discrete
   time_aggregates$year <- factor(time_aggregates$year)
-  # browser()
+
   linechart <- ggplot(data = time_aggregates, aes(x=mdy(monthday, truncated=1L), y=n, group=year, colour=year)) +
     geom_line(linewidth=1) +
     labs(title=title, x="Month", y=y, colour="Year") +
-    scale_fill_brewer(name="Year", type="qual", palette = "Spectral") 
+    scale_x_date(date_labels = "%b") #just show month
   
 }
 

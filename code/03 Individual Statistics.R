@@ -15,6 +15,7 @@ bird_name <- "Cuckoo"
 # chart <- plot_monthcount_barchart(month_count, u_code)
 # chart
 
+
 (get_summary_info(birds, bird_name, is_bird=TRUE))
 month_count <-  get_interval_lists(birds, bird_name, "month", TRUE)
 week_count <-  get_interval_lists(birds, bird_name, "week", TRUE)
@@ -23,9 +24,11 @@ tenday_count <-  get_interval_lists(birds, bird_name, "10 days", TRUE)
 chart <- plot_interval_barchart(tenday_count, "interval_of", "10 day", bird_name, TRUE)
 chart
 
-chart2 <- plot_yearly_linechart(tenday_count, "interval_of", "Cuckoo sightings on complete lists with ten-day intervals", "Number of observations")
+chart2 <- plot_yearly_linechart(week_count, "interval_of", "Cuckoo sightings on complete lists with weekly intervals", "Number of observations")
 chart2
 
 write_csv(month_count, file = "data_temp/cuckoo.csv")
+write_csv(week_count, file = "data_temp/cuckoo_week.csv")
+write_csv(tenday_count, file = "data_temp/cuckoo_tenday.csv")
 
 ggsave("results/cuckoo10dayyear.png", chart2, width= 10, height=7)
