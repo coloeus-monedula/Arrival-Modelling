@@ -31,7 +31,7 @@ plot_interval_barchart <- function(interval_list_count,invar, interval, id_code,
 
 #' Plot a barchart with interval aggregate data
 #' 
-#' Called from other functions. Plots a barchart with month on the x axis and corresponding data on the y.
+#' Often called from other functions. Plots a barchart with month on the x axis and corresponding data on the y.
 #' @param time_aggregates Dataframe with interval column and another column of data aggregated by an interval (called "n")
 #' @param invar Column with date data
 #' @param earliest_date Earliest interval row

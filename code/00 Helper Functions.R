@@ -104,6 +104,60 @@ get_interval_lists <- function(data_list, id_code, interval, is_bird=FALSE) {
   
 }
 
+
+#summed moving window lists that increment day by day (at the moment)
+get_movingwindow_daylists <- function(data_list, id_code, period, is_bird = FALSE) {
+  if (id_code!="ALL" && !check_id_exists(data_list, id_code, is_bird)) {
+    return(NA)
+  }
+  
+  if (is_bird) {
+    single_id_list <- data_list %>% 
+      filter(tolower(english_name) == tolower(id_code))
+  } else if (id_code == "ALL"){ 
+    # just uses all the data
+    single_id_list <- data_list
+  } else {
+    single_id_list <- data_list %>% 
+      filter(tolower(user_code) == tolower(id_code))
+  }
+  
+  single_id_list <- single_id_list %>% 
+    arrange(date)
+  
+  # define beginning and end of interval
+  beginning <- head(single_id_list, 1)$date
+  
+  # -1 day because %within% is inclusive of enddate
+  end <- beginning %m+% as.period(period) %m-% days(1)
+  window <- interval(beginning, end)
+  
+  # get middle of moving window ie. what the summed value will be stored at
+  middle <- int_end(window/2)
+  middle <- as.Date(middle)
+  final_middle <- tail(single_id_list, 1)$date %m-% as.period(period)
+  total_rows <- final_middle - middle
+  
+  summed_list <- data.frame(date = rep(NA, total_rows), n=rep(0, total_rows))
+  summed_list$date <- dmy(summed_list$date)
+  
+  for (i in 1:total_rows) {
+    
+    # use the %in% terminology - sum everything up, add to dataframe w date, move on
+    interval_dates <- single_id_list %>% 
+      filter(date %within% window)
+    
+    total <- nrow(interval_dates)
+    summed_list[i,] <- c(date = middle, n = total)
+    
+    middle <- middle + days(1)
+    window <- int_shift(window, days(1))
+  }
+  
+  return (summed_list)
+
+}
+
 # adds a 10km square reference to a raw dataset
 # invar is the column which has the grid reference
 # returns in sorted by nchar order

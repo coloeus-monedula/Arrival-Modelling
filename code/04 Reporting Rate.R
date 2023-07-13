@@ -47,6 +47,8 @@ get_reportingrate_time <- function(bird_list, total_lists,invar)  {
 #' @param location Location for a reporting rate.
 #' @return Barchart with month on the x-axis and rate on the y-axis.
 plot_reportingrate_barchart <- function(reporting_rate, invar, bird_name, location="TL") {
+  reporting_rate <- reporting_rate %>% 
+    rename(n = reporting_rate)
   earliest <- tail(reporting_rate, 1)[[invar]]
   latest <- head(reporting_rate, 1)[[invar]]
   title <- paste("Reporting rate for",bird_name,"in",location)
@@ -83,5 +85,16 @@ chart2
 
 test <- plot_yearly_linechart(reporting_rate_tenday, "interval_of", "Reporting rate for Cetti's Warbler", "Reporting rate" )
 test
+
+
+cumulative_users_tenday <- get_movingwindow_daylists(raw_user, "ALL", "10 days")
+cumulative_warbler <- get_movingwindow_daylists(birds, "Cetti's Warbler", "10 days", TRUE)
+
+reporting_rate_cumulative <- get_reportingrate_time(cumulative_warbler, cumulative_users_tenday, "date")
+test2 <- plot_reportingrate_barchart(reporting_rate_cumulative, "interval_of", "Cetti's Warbler")
+test2
+
+# NOTE: GRAPHS ASSUME Y AXIS IS N - CHANGE THIS?
+
 # ggsave("results/cettiwarbler_rate_yearly.png", test, width= 10, height=7)
-# TODO: test on different bird datas
+
