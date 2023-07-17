@@ -10,7 +10,7 @@ source("code/00 Helper Functions.R")
 #' 
 #' Reporting rate is calculated by dividing absolute species numbers for an interval by total lists for that interval, giving a number between 0 and 1. Both lists are cleaned and sorted by descending order within the function.  
 #' 
-#' @param bird_list Dataframe with columns: interval of observation and bird count for that month ("n").
+#' @param bird_list Dataframe with columns: interval of observation and bird count for that period ("n").
 #' @param total_lists Dataframe with columns: intervals of complete list made and total complete lists made ("n").
 #' @param invar Name of column with intervals
 #' @return A Dataframe with columns: intervals used in reporting rate ("interval_of") and reporting rate for a bird species ("reporting_rate").
@@ -56,26 +56,26 @@ plot_reportingrate_barchart <- function(reporting_rate, invar, bird_name, locati
                          title,"Reporting Rate")
 }
 
-complete_lists <- read_csv("results/lists_by_month.csv")
-bird <- read_csv("data_temp/cettiwarbler.csv")
-reporting_rate <- get_reportingrate_time(bird,complete_lists, "month_of")
-chart <- plot_reportingrate_barchart(reporting_rate, "interval_of","Cetti's Warbler")
-chart
+# complete_lists <- read_csv("results/lists_by_month.csv")
+# bird <- read_csv("data_temp/cettiwarbler.csv")
+# reporting_rate <- get_reportingrate_time(bird,complete_lists, "month_of")
+# chart <- plot_reportingrate_barchart(reporting_rate, "interval_of","Cetti's Warbler")
+# chart
 
 # ggsave("results/cettiswarbler_rate.png", chart, width= 10, height=7)
 
 # we trying w weekly and 10day
 raw_user <- read_csv("data_temp/user_data.csv")
 birds <-  read_csv("data_temp/bird_lists.csv")
-name <- "Cetti's Warbler"
+name <- "Swallow"
 
-weekly_birds <- get_interval_lists(birds,name,"week",TRUE)
+# weekly_birds <- get_interval_lists(birds,name,"week",TRUE)
 tenday_birds <- get_interval_lists(birds, name, "10 day", TRUE)
 
-weekly <- get_interval_lists(raw_user,"ALL","week")
+# weekly <- get_interval_lists(raw_user,"ALL","week")
 tenday <- get_interval_lists(raw_user,"ALL","10 day")
 
-reporting_rate_weekly <- get_reportingrate_time(weekly_birds, weekly, "interval_of")
+# reporting_rate_weekly <- get_reportingrate_time(weekly_birds, weekly, "interval_of")
 reporting_rate_tenday <- get_reportingrate_time(tenday_birds, tenday, "interval_of")
 
 
@@ -88,10 +88,10 @@ test
 
 
 cumulative_users_tenday <- get_movingwindow_daylists(raw_user, "ALL", "10 days")
-cumulative_warbler <- get_movingwindow_daylists(birds, "Cetti's Warbler", "10 days", TRUE)
+cumulative_swallow <- get_movingwindow_daylists(birds, name, "10 days", TRUE)
 
-reporting_rate_cumulative <- get_reportingrate_time(cumulative_warbler, cumulative_users_tenday, "date")
-test2 <- plot_reportingrate_barchart(reporting_rate_cumulative, "interval_of", "Cetti's Warbler")
+reporting_rate_cumulative <- get_reportingrate_time(cumulative_swallow, cumulative_users_tenday, "date")
+test2 <- plot_reportingrate_barchart(reporting_rate_cumulative, "interval_of", "Swallow")
 test2
 
 # NOTE: GRAPHS ASSUME Y AXIS IS N - CHANGE THIS?

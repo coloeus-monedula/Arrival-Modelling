@@ -58,12 +58,12 @@ get_summary_info <- function(data_list, id_code, is_bird=FALSE) {
 }
 
 
-#' Get observations/list counts by month, week, or 10 days
+#' Get observations/list counts by month, week, day, or 10 days
 #' 
 #' For a given user/bird, returns the interval observations or complete lists made. Note that "10 days" is more precisely splitting a month into approximate thirds: 1st - 10th, 11th - 20th, and 21st - end of the month.
 #' @param data_list raw dataset with "date" column in Date format
 #' @param id_code Usercode or bird species (currently English name) to search for. Case insensitive. If id_code = "ALL" and searching for users, includes all users.
-#' @param interval "month", "week", or "10 days"/"10 day". How long each interval should be. 
+#' @param interval "month", "week", "day", or "10 days"/"10 day". How long each interval should be. 
 #' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
 #' @return Dataframe with columns: interval_of and n (where n is count).
 get_interval_lists <- function(data_list, id_code, interval, is_bird=FALSE) {
@@ -86,7 +86,7 @@ get_interval_lists <- function(data_list, id_code, interval, is_bird=FALSE) {
   single_id_list$floored_date <- floor_date(single_id_list$date, unit = interval)
 
   is_ten_days = interval == "10 days" || interval=="10 day" 
-  # catch cases where months have 31 days (31st day data get put on separate rows) and reassign that month's bracket beginning the 21st
+  # catch cases where months have 31 days (31st day data get put on separate rows) and reassign to that month's bracket beginning the 21st
   single_id_list <-  single_id_list %>% 
     mutate(
       floored_date = case_when(
