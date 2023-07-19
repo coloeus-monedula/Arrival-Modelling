@@ -4,11 +4,82 @@ library(lubridate)
 library(roxygen2)
 library(BTOTools)
 
+
+#' Reading user data from source into a data frame
+#' 
+#' @param path Path where raw csv can be found
+#' @param usercode Optional. Defaults to processing all users (ALL) but can process a single usercode.
+#' @return A data frame with rows: user_code, sub_code, date (converted into Date), latitude, longitude, grid_ref
+get_user_data <- function(path, usercode = "ALL") {
+  raw <- read_csv(path)
+  
+  # remove dummy numbers
+  raw <- select(.data = raw, -...1)
+  # convert dates to date format
+  raw$date <- dmy(raw$obs_dt)
+  
+  #optional filter by usercode
+  if (usercode!="ALL") {
+    if (!check_id_exists(data_list = raw, id_code = usercode)) {
+      print("Usercode not found. Getting data for all users instead. ")
+      user_lists <- raw
+    } else {
+      user_lists <- raw %>% 
+        filter(tolower(user_code) == tolower(usercode))
+    }
+  } else {
+    user_lists <- raw
+  }
+  
+  # map users to lists
+  user_lists <- user_lists %>% 
+    select(user_code, sub_code, date, latitude, longitude, grid_ref) %>% 
+    distinct() %>% 
+    arrange(date)
+  
+  
+  return(user_lists)
+}
+
+
+#' Reading bird data from source into a data frame
+#' 
+#' @param path Path where raw csv can be found
+#' @param species Optional. Defaults to processing all birds (ALL) but can input the (english) name of a single species.
+#' @return A data frame with rows: sub_code, english_name, scientific_name, grid_ref, longitude, latitude, date (converted into Date)
+get_bird_data <- function(path, species="ALL") {
+  raw <- read_csv(path)
+  
+  # remove dummy numbers
+  raw <- select(.data = raw, -...1)
+  # convert dates to date format
+  raw$date <- dmy(raw$obs_dt)
+  
+  #optional filter by species eng name
+  if (species !="ALL") {
+    if (!check_id_exists(data_list = raw, id_code = species, is_bird = TRUE)) {
+      print("Species name not found. Getting data for all species instead.")
+      birds <- raw
+    } else {
+      birds <- raw %>% 
+        filter(tolower(english_name) == tolower(species))
+    }
+  } else {
+    birds <- raw
+  }
+  
+  birds <- birds %>% 
+    select(sub_code, english_name, scientific_name, grid_ref, longitude, latitude, date) %>% 
+    arrange(date)
+  
+  return(birds)
+}
+
 #' Check usercode or bird name exists 
 #'
 #' Checking function often used inside other functions to check for validity. Case-insensitive.
 #'
-#' @param data_list raw dataset.
+#' @param data_list pre-processed dataset.
 #' @param id_code Usercode or bird species (currently English name) to search for.
 #' @param is_bird Boolean, default to FALSE. Set true if searching for a bird.
 #' @return TRUE if identifier found, FALSE if not.
@@ -60,23 +131,24 @@ get_summary_info <- function(data_list, id_code, is_bird=FALSE) {
 
 #' Get observations/list counts by month, week, day, or 10 days
 #' 
-#' For a given user/bird, returns the interval observations or complete lists made. Note that "10 days" is more precisely splitting a month into approximate thirds: 1st - 10th, 11th - 20th, and 21st - end of the month.
-#' @param data_list raw dataset with "date" column in Date format
-#' @param id_code Usercode or bird species (currently English name) to search for. Case insensitive. If id_code = "ALL" and searching for users, includes all users.
-#' @param interval "month", "week", "day", or "10 days"/"10 day". How long each interval should be. 
+#' For a given user/bird, returns the interval observations or complete lists made. Note that "10 days" is more precisely splitting a month into approximate thirds: 1st - 10th, 11th - 20th, and 21st - end of the month. The input data can either be already filtered for a species/id code or be the whole dataset.
+#' 
+#' @param data_list dataset with "date" column in Date format. 
+#' @param interval "month", "week", "day", or "10 days"/"10 day". How long each interval should be.
+#' @param id_code Usercode or bird species (currently English name) to search for. Case insensitive. If id_code = "ALL", does not do any filtering.
 #' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
 #' @return Dataframe with columns: interval_of and n (where n is count).
-get_interval_lists <- function(data_list, id_code, interval, is_bird=FALSE) {
+get_interval_lists <- function(data_list, interval,id_code = "ALL", is_bird=FALSE) {
   if (id_code!="ALL" && !check_id_exists(data_list, id_code, is_bird)) {
     return(NA)
   }
   
-  if (is_bird) {
-    single_id_list <- data_list %>% 
-      filter(tolower(english_name) == tolower(id_code))
-  } else if (id_code == "ALL"){ 
+  if (id_code == "ALL"){ 
     # just uses all the data
     single_id_list <- data_list
+  } else if (is_bird) {
+    single_id_list <- data_list %>% 
+      filter(tolower(english_name) == tolower(id_code))
   } else {
     single_id_list <- data_list %>% 
       filter(tolower(user_code) == tolower(id_code))
@@ -106,18 +178,20 @@ get_interval_lists <- function(data_list, id_code, interval, is_bird=FALSE) {
 
 
 #summed moving window lists that increment day by day (at the moment)
-get_movingwindow_daylists <- function(data_list, id_code, period, is_bird = FALSE) {
+get_movingwindow_daylists <- function(data_list, period,id_code="ALL", is_bird = FALSE) {
   if (id_code!="ALL" && !check_id_exists(data_list, id_code, is_bird)) {
     return(NA)
   }
   
-  if (is_bird) {
-    single_id_list <- data_list %>% 
-      filter(tolower(english_name) == tolower(id_code))
-  } else if (id_code == "ALL"){ 
+  if (id_code == "ALL"){ 
     # just uses all the data
     single_id_list <- data_list
-  } else {
+  }
+  else if (is_bird) {
+    single_id_list <- data_list %>% 
+      filter(tolower(english_name) == tolower(id_code))
+  } 
+  else {
     single_id_list <- data_list %>% 
       filter(tolower(user_code) == tolower(id_code))
   }
@@ -161,6 +235,12 @@ get_movingwindow_daylists <- function(data_list, id_code, period, is_bird = FALS
 # adds a 10km square reference to a raw dataset
 # invar is the column which has the grid reference
 # returns in sorted by nchar order
+
+#' Add a 10km grid reference to a dataframe
+#' 
+#' Given a dataframe with 1km, 2km, or 10km grid references for each row, adds to a new column the 10km grid reference that corresponds to each grid reference.
+#' 
+#' @param name description
 add_10km_gridref <- function(df, invar) {
   arranged <- df %>% 
     arrange(desc(nchar(df[[invar]]))) %>% 
