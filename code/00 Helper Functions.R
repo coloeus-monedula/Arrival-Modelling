@@ -10,11 +10,9 @@ library(BTOTools)
 #' @param path Path where raw csv can be found
 #' @param usercode Optional. Defaults to processing all users (ALL) but can process a single usercode.
 #' @return A data frame with rows: user_code, sub_code, date (converted into Date), latitude, longitude, grid_ref
-get_user_data <- function(path, usercode = "ALL") {
+get_user_data <- function(path, usercode = "ALL", areacode="ALL") {
   raw <- read_csv(path)
-  
-  # remove dummy numbers
-  raw <- select(.data = raw, -...1)
+
   # convert dates to date format
   raw$date <- dmy(raw$obs_dt)
   
@@ -30,6 +28,13 @@ get_user_data <- function(path, usercode = "ALL") {
   } else {
     user_lists <- raw
   }
+  
+  # optional filter by grid ref
+  if (areacode!= "ALL") {
+    user_lists <- user_lists %>% 
+      filter(tolower(substring(grid_ref, 1, 2)) == tolower(areacode))
+  }
+  
   
   # map users to lists
   user_lists <- user_lists %>% 
@@ -47,11 +52,9 @@ get_user_data <- function(path, usercode = "ALL") {
 #' @param path Path where raw csv can be found
 #' @param species Optional. Defaults to processing all birds (ALL) but can input the (english) name of a single species.
 #' @return A data frame with rows: sub_code, english_name, scientific_name, grid_ref, longitude, latitude, date (converted into Date)
-get_bird_data <- function(path, species="ALL") {
+get_bird_data <- function(path, species="ALL", areacode="ALL") {
   raw <- read_csv(path)
   
-  # remove dummy numbers
-  raw <- select(.data = raw, -...1)
   # convert dates to date format
   raw$date <- dmy(raw$obs_dt)
   
@@ -67,6 +70,13 @@ get_bird_data <- function(path, species="ALL") {
   } else {
     birds <- raw
   }
+  
+  # optional filter by grid ref
+  if (areacode!= "ALL") {
+    birds <- birds %>% 
+      filter(tolower(substring(grid_ref, 1, 2)) == tolower(areacode))
+  }
+  
   
   birds <- birds %>% 
     select(sub_code, english_name, scientific_name, grid_ref, longitude, latitude, date) %>% 

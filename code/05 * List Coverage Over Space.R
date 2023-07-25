@@ -112,8 +112,9 @@ get_reportingrate_space <- function(lists, birds_per_grid) {
 # FUNCTIONS END HERE
 # ================================
 bird_name <- "Cuckoo"
-bird_obs <- read_csv(paste("data_temp/",bird_name,"_obs.csv", sep=""))
-lists <-  read_csv("data_temp/user_data.csv")
+bird_obs2 <-get_bird_data("data_in/RENEW_extract_TL.csv", species = bird_name, areacode = "TL")
+lists <-  get_user_data("data_in/RENEW_extract_TL.csv", areacode = "TL")
+gc()
 
 margin <- 0.04
 
@@ -165,9 +166,9 @@ plot_rate <- ggmap(map) +
   scale_fill_gradient(low = "#c2daf0", high = "#000080", name="Reporting Rate" )+
   labs(title = paste("Reporting rate for", bird_name, "in TL region"), subtitle = "Using 10km squares", x="Latitude", y="Longitude")
 
-plot_num
+plot_rate
 
-ggsave(paste("results/",bird_name,"_plot.png", sep=""), plot_num, width = 10, height=8)
-ggsave(paste("results/",bird_name,"_plot_rate.png", sep=""), plot_rate, width = 10, height=8)
+# ggsave(paste("results/",bird_name,"_plot.png", sep=""), plot_num, width = 10, height=8)
+# ggsave(paste("results/",bird_name,"_plot_rate.png", sep=""), plot_rate, width = 10, height=8)
 
 

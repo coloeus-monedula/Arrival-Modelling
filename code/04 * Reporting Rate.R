@@ -65,6 +65,8 @@ plot_reportingrate_barchart <- function(reporting_rate, invar, bird_name, locati
 # we trying w weekly and 10day
 raw_user <- get_user_data("data_in/RENEW_extract_TL.csv")
 birds <-  get_bird_data("data_in/RENEW_extract_TL.csv")
+gc()
+
 name <- "Swallow"
 
 # weekly_birds <- get_interval_lists(birds,name,"week",TRUE)
