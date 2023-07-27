@@ -4,38 +4,7 @@ source("code/00 Graphing Functions.R")
 source("code/00 Helper Functions.R")
 
 
-#' Create reporting rate dataframe
-#' 
-#' Given observations for a bird species and total complete lists made, creates reporting rate for the bird. 
-#' 
-#' Reporting rate is calculated by dividing absolute species numbers for an interval by total lists for that interval, giving a number between 0 and 1. Both lists are cleaned and sorted by descending order within the function.  
-#' 
-#' @param bird_list Dataframe with columns: interval of observation and bird count for that period ("n").
-#' @param total_lists Dataframe with columns: intervals of complete list made and total complete lists made ("n").
-#' @param invar Name of column with intervals
-#' @return A Dataframe with columns: intervals used in reporting rate ("interval_of") and reporting rate for a bird species ("reporting_rate").
-get_reportingrate_time <- function(bird_list, total_lists,invar)  {
-  # removing NAs and arranging by date
-  bird_list <- bird_list %>% 
-    filter(!is.na(bird_list[[invar]])) %>% 
-    arrange(desc(.data[[invar]]))
 
-  # only contains months where bird was sighted
-  # arranges by date in the same way the bird absolute numbers are
-  patterns <- bird_list[[invar]]
-  
-  bird_sighted_months <- total_lists %>% 
-    filter(grepl(paste(patterns,collapse = "|"), .data[[invar]])) %>% 
-    arrange(desc(.data[[invar]]))
-  
-  # divides absolute numbers by total lists for that month
-  # assumes complete lists can only note a bird once
-  reporting_rate_num <- bird_list[,"n"] / bird_sighted_months[,"n"]
-  reporting_rate <- data.frame (
-    interval_of = bird_list[[invar]],
-    reporting_rate = reporting_rate_num
-  )
-}
 
 #' Create reporting rate barchart
 #' 

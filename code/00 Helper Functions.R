@@ -9,6 +9,7 @@ library(BTOTools)
 #' 
 #' @param path Path where raw csv can be found
 #' @param usercode Optional. Defaults to processing all users (ALL) but can process a single usercode.
+#' Optional. Defaults to processing all locations (ALL) but can filter by the first two letters of a grid reference (eg. "TL").
 #' @return A data frame with rows: user_code, sub_code, date (converted into Date), latitude, longitude, grid_ref
 get_user_data <- function(path, usercode = "ALL", areacode="ALL") {
   raw <- read_csv(path)
@@ -42,7 +43,6 @@ get_user_data <- function(path, usercode = "ALL", areacode="ALL") {
     distinct() %>% 
     arrange(date)
   
-  
   return(user_lists)
 }
 
@@ -50,7 +50,8 @@ get_user_data <- function(path, usercode = "ALL", areacode="ALL") {
 #' Reading bird data from source into a data frame
 #' 
 #' @param path Path where raw csv can be found
-#' @param species Optional. Defaults to processing all birds (ALL) but can input the (english) name of a single species.
+#' @param species Optional. Defaults to processing all birds (ALL) but can input the (english) name of a single species. 
+#' @param areacode Optional. Defaults to processing all locations (ALL) but can filter by the first two letters of a grid reference (eg. "TL").
 #' @return A data frame with rows: sub_code, english_name, scientific_name, grid_ref, longitude, latitude, date (converted into Date)
 get_bird_data <- function(path, species="ALL", areacode="ALL") {
   raw <- read_csv(path)
@@ -81,7 +82,6 @@ get_bird_data <- function(path, species="ALL", areacode="ALL") {
   birds <- birds %>% 
     select(sub_code, english_name, scientific_name, grid_ref, longitude, latitude, date) %>% 
     arrange(date)
-  
   return(birds)
 }
 
@@ -147,7 +147,7 @@ get_summary_info <- function(data_list, id_code, is_bird=FALSE) {
 #' @param interval "month", "week", "day", or "10 days"/"10 day". How long each interval should be.
 #' @param id_code Usercode or bird species (currently English name) to search for. Case insensitive. If id_code = "ALL", does not do any filtering.
 #' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
-#' @return Dataframe with columns: interval_of and n (where n is count).
+#' @return Dataframe with columns: interval_of and n (where n is count), sorted by date.
 get_interval_lists <- function(data_list, interval,id_code = "ALL", is_bird=FALSE) {
   if (id_code!="ALL" && !check_id_exists(data_list, id_code, is_bird)) {
     return(NA)
@@ -242,15 +242,13 @@ get_movingwindow_daylists <- function(data_list, period,id_code="ALL", is_bird =
 
 }
 
-# adds a 10km square reference to a raw dataset
-# invar is the column which has the grid reference
-# returns in sorted by nchar order
-
 #' Add a 10km grid reference to a dataframe
 #' 
 #' Given a dataframe with 1km, 2km, or 10km grid references for each row, adds to a new column the 10km grid reference that corresponds to each grid reference.
 #' 
-#' @param name description
+#' @param df Dataframe with grid references
+#' @param invar Column name of the grid reference
+#' @return Dataframe with a "tenkm" column containing the 10km grid reference for each row, with rows sorted by length of the original grid reference
 add_10km_gridref <- function(df, invar) {
   arranged <- df %>% 
     arrange(desc(nchar(df[[invar]]))) %>% 
@@ -285,6 +283,39 @@ add_10km_gridref <- function(df, invar) {
     ) %>% 
     #removes row_num col
     select(-row_num) 
+}
+
+#' Create reporting rate dataframe
+#' 
+#' Given number of observations for a bird species and total complete lists made, creates reporting rate for the bird. 
+#' 
+#' Reporting rate is calculated by dividing absolute species numbers for an interval by total lists for that interval, giving a percentage between 0 and 100. Both lists are cleaned and sorted by descending order within the function.  
+#' 
+#' @param bird_list Dataframe with columns: interval of observation and bird count for that period ("n").
+#' @param total_lists Dataframe with columns: intervals of complete list made and total complete lists made ("n").
+#' @param invar Name of column with time intervals. Must be the same for both bird_list and total_lists.
+#' @return A Dataframe with columns: intervals used in reporting rate ("interval_of") and reporting rate for a bird species ("reporting_rate").
+get_reportingrate_time <- function(bird_list, total_lists,invar)  {
+  # removing NAs and arranging by date
+  bird_list <- bird_list %>% 
+    filter(!is.na(bird_list[[invar]])) %>% 
+    arrange(desc(.data[[invar]]))
+  
+  # only contains months where bird was sighted
+  # arranges by date in the same way the bird absolute numbers are
+  patterns <- bird_list[[invar]]
+  
+  bird_sighted_months <- total_lists %>% 
+    filter(grepl(paste(patterns,collapse = "|"), .data[[invar]])) %>% 
+    arrange(desc(.data[[invar]]))
+  
+  # divides absolute numbers by total lists for that month
+  # assumes complete lists can only note a bird once
+  reporting_rate_num <- (bird_list[,"n"] / bird_sighted_months[,"n"])*100
+  reporting_rate <- data.frame (
+    interval_of = bird_list[[invar]],
+    reporting_rate = reporting_rate_num
+  )
 }
 
 
