@@ -22,40 +22,47 @@ library("ggplot2")
 # write_csv(swallow_2021,file = "data_temp/swallow_2021.csv")
 # write_csv(users_2021, file="data_temp/users_2021.csv")
 
-swallow_2021 <- read_csv("data_temp/swallow_2021.csv")
-users_2021 <- read_csv("data_temp/users_2021.csv")
-
-# get reporting rate
-# x = date. y = reporting rate
-swallow_daily <- get_interval_lists(data_list = swallow_2021, interval = "day", is_bird = "TRUE")
-users_daily <- get_interval_lists(data_list = users_2021, interval = "day")
-
-reporting_rate <- get_reportingrate_time(bird_list = swallow_daily, total_lists = users_daily, invar = "interval_of")
-
+#TL88 swallow 2021
+swallows <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", species = "Swallow", year = 2021) 
 # convert to numerical day of the year
-reporting_rate$day <- yday(reporting_rate$interval_of)
+swallows$day <- yday(swallows$date)
+
+
+
 
 # TODO: add smoothed relationship w number of species recorded 
-gam_swallow <- gam(n~s(day, k = 20,), method="REML", data = reporting_rate) 
+gam_swallow <- gam(presence~s(day), method="REML",family = "binomial", data = swallows) 
 
 # trying to predict values
-x_new <- seq(from=1, to=365)
+x_new <- seq(from=1, to=365, by=0.25)
 y_pred <- predict(gam_swallow, data.frame(day=x_new))
-predicted <- data.frame(day = x_new, n = y_pred)
+
+# first differential?
+
+predicted <- data.frame(day = x_new, y = y_pred)
+
+first_diff <- diff(y_pred)
+# shifts day so inbetween, then removes last row
+day_shift <- x_new +0.125
+day_shift <- head(day_shift, -1)
+
+# TODO: https://stackoverflow.com/questions/25091581/how-to-detect-sign-change-eg-positive-to-negative-in-time-series-data 
+# computational way of detecting sign change
+predict_firstdiff <- data.frame(day=day_shift, y=first_diff)
+predict_firstdiff$sign <- diff(sign(first_diff))
 
 
-# fit residuals
-refit_resid <- reporting_rate
-refit_resid$resid <- gam_swallow$residuals
-
-gam_resid <- gam(resid ~ s(day) + s(n), data = refit_resid, method = "REML")
-par(mfrow = c(2, 2))
-gam.check(gam_resid)
+# # fit residuals
+# refit_resid <- reporting_rate
+# refit_resid$resid <- gam_swallow$residuals
+# 
+# gam_resid <- gam(resid ~ s(day) + s(n), data = refit_resid, method = "REML")
+# par(mfrow = c(2, 2))
+# gam.check(gam_resid)
 
 # todo: add line where x-intercept is crossed
-ggplot(data=reporting_rate, aes(x=day, y=n)) +
-  geom_point() +
-  geom_point(data = predicted, colour="red") 
+ggplot(data=predicted, aes(x=day, y=y)) +
+  geom_point()
 
 par(mfrow = c(2, 2))
 summary(gam_swallow)

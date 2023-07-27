@@ -5,6 +5,40 @@ library(roxygen2)
 library(BTOTools)
 
 
+#can summarise by group i think
+# produces subcode, date, presence/absence (1/0)
+get_presenceabsence_data <- function(path, tenkm_area="ALL", species = "ALL", year="ALL") {
+  raw <- read_csv(path)
+  
+  # convert dates to date format
+  raw$date <- dmy(raw$obs_dt)
+  
+  #optional filter by year 
+  if (year !="ALL") {
+    filtered <-  raw %>% 
+      filter(year(date) == year)
+  }
+  
+  #optional filter by 10km grid ref - do last as it involves adding 10km grid refs
+  if (tenkm_area !="ALL") {
+    filtered <- add_10km_gridref(filtered, "grid_ref") %>% 
+      filter(tolower(tenkm) == tolower(tenkm_area))
+  }
+  
+  # filter by species here - also add column to count total species in a subcode list
+  # do mutate before?
+  aggregated <- filtered %>% 
+    group_by(sub_code, date) %>% 
+    summarise(count = n(), 
+              #if the wanted species is observed in the list or not
+              presence = ifelse(any(tolower(english_name) == tolower(species)),
+                                1, 0)
+              )
+  
+  
+  return(aggregated)
+}
+
 #' Reading user data from source into a data frame
 #' 
 #' @param path Path where raw csv can be found
