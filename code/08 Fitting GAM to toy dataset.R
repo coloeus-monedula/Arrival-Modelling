@@ -33,7 +33,7 @@ swallows$day <- yday(swallows$date)
 
 
 # TODO: add smoothed relationship w number of species recorded 
-gam_swallow <- gam(presence~s(day + k(10)), method="REML",family = "binomial", data = swallows) 
+gam_swallow <- gam(presence~s(day), K=10, method="REML",family = "binomial", data = swallows) 
 
 # trying to predict values
 x_new <- seq(from=1, to=365, by=0.25)
