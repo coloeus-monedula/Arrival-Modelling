@@ -25,19 +25,29 @@ library("ggplot2")
 
 year = 2022
 #TL88 swallow 2022
-swallows <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", species = "Swallow", year = year) 
+bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", species = "Swallow", year = year) 
 # convert to numerical day of the year
-swallows$day <- yday(swallows$date)
+bird$day <- yday(bird$date)
+bird$week <- week(bird$date)
 
 
+# sense check - weekly reporting rate
+bird_weekly <- bird %>% 
+  group_by(week) %>% 
+  summarise(rate = mean(presence))
+
+# midpoint for plotting
+bird_weekly$day <- ((bird_weekly$week -1) * 7) + 3.5
 
 
 # TODO: add smoothed relationship w number of species recorded 
-gam_swallow <- gam(presence~s(day), K=10, method="REML",family = "binomial", data = swallows) 
+
+# TODO: change funcs so one gives 0/1 data for all species (like simon's code), and another summarises into count and presence/absence data for a focal species
+gam_bird <- gam(presence~s(day, k=10), method="REML",family = "binomial", data = bird) 
 
 # trying to predict values
-x_new <- seq(from=1, to=365, by=0.25)
-y_pred <- predict(gam_swallow, data.frame(day=x_new), type="response")
+x_new <- seq(from=0, to=365, by=0.25)
+y_pred <- predict(gam_bird, data.frame(day=x_new), type="response")
 
 
 predicted <- data.frame(day = x_new, rate = y_pred)
@@ -49,7 +59,9 @@ first_peak <- predicted[change,]
 
 ten_percent <- first_peak$rate * 0.1
 arrival_start <- predicted[which(predicted$rate >= ten_percent)[1],]
-arrival_date <- as.Date(arrival_start$day, origin = ymd(year, truncated=2))
+
+# -1 day since peak is calculated using when it starts decreasing - "offset" that
+arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
 
 # # fit residuals
 # refit_resid <- reporting_rate
@@ -61,11 +73,12 @@ arrival_date <- as.Date(arrival_start$day, origin = ymd(year, truncated=2))
 
 # todo: add line where x-intercept is crossed
 ggplot(data=predicted, aes(x=day, y=rate)) +
+  geom_col(data = bird_weekly, aes(x=day, y=rate), fill="grey75")+
   geom_line() +
   geom_vline(xintercept = first_peak$day, col="blue") +
   geom_vline(xintercept = arrival_start$day, col="green")
 
-par(mfrow = c(2, 2))
-summary(gam_swallow)
-gam.check(gam_swallow)
+# par(mfrow = c(2, 2))
+# summary(gam_bird)
+# gam.check(gam_bird)
 

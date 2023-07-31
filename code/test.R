@@ -1,3 +1,5 @@
+library(tidyr)
+
 #read the data
 raw <- read.csv('data_in/RENEW_extract_TL.csv', stringsAsFactors = FALSE)
 
