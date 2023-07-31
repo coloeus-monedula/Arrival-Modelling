@@ -43,14 +43,19 @@ bird_weekly$day <- ((bird_weekly$week -1) * 7) + 3.5
 # TODO: add smoothed relationship w number of species recorded 
 
 # TODO: change funcs so one gives 0/1 data for all species (like simon's code), and another summarises into count and presence/absence data for a focal species
-gam_bird <- gam(presence~s(day, k=10), method="REML",family = "binomial", data = bird) 
+gam_bird <- gam(presence~s(day, k=10) + s(count, k=10), method="REML",family = "binomial", data = bird) 
 
+
+# TODO: set an average value for count??? or range of numbers?
 # trying to predict values
-x_new <- seq(from=0, to=365, by=0.25)
-y_pred <- predict(gam_bird, data.frame(day=x_new), type="response")
+x_day <- seq(from=0, to=365, by=0.25)
+
+# median - less influencable by extreme skew
+x_count <- median(bird$count)
+y_pred <- predict(gam_bird, data.frame(day=x_day, count=x_count), type="response")
 
 
-predicted <- data.frame(day = x_new, rate = y_pred)
+predicted <- data.frame(day = x_day, rate = y_pred)
 
 first_diff <- diff(predicted$rate)
 # change from increasing rate to just starting to decrease
@@ -64,8 +69,8 @@ arrival_start <- predicted[which(predicted$rate >= ten_percent)[1],]
 arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
 
 # # fit residuals
-# refit_resid <- reporting_rate
-# refit_resid$resid <- gam_swallow$residuals
+# refit_resid <- bird
+# refit_resid$resid <- gam_bird$residuals
 # 
 # gam_resid <- gam(resid ~ s(day) + s(n), data = refit_resid, method = "REML")
 # par(mfrow = c(2, 2))
@@ -80,5 +85,5 @@ ggplot(data=predicted, aes(x=day, y=rate)) +
 
 # par(mfrow = c(2, 2))
 # summary(gam_bird)
-# gam.check(gam_bird)
+gam.check(gam_bird)
 
