@@ -77,11 +77,12 @@ get_presenceabsence_focal <- function(data, species, exclude = "latitude, longit
 #' @param usercode Optional. Defaults to processing all users (ALL) but can process a single usercode.
 #' Optional. Defaults to processing all locations (ALL) but can filter by the first two letters of a grid reference (eg. "TL").
 #' @return A data frame with rows: user_code, sub_code, date (converted into Date), latitude, longitude, grid_ref
-get_user_data <- function(path, usercode = "ALL", areacode="ALL") {
+get_user_data <- function(path, usercode = "ALL", tenkm_area="ALL", year="ALL") {
   raw <- read_csv(path)
 
   # convert dates to date format
   raw$date <- dmy(raw$obs_dt)
+  
   
   #optional filter by usercode
   if (usercode!="ALL") {
@@ -96,10 +97,15 @@ get_user_data <- function(path, usercode = "ALL", areacode="ALL") {
     user_lists <- raw
   }
   
-  # optional filter by grid ref
-  if (areacode!= "ALL") {
-    user_lists <- user_lists %>% 
-      filter(tolower(substring(grid_ref, 1, 2)) == tolower(areacode))
+  if (year !="ALL") {
+    user_lists <-  user_lists %>% 
+      filter(year(date) == year)
+  }
+  
+  #optional filter by 10km grid ref - do last as it involves adding 10km grid refs
+  if (tenkm_area !="ALL") {
+    user_lists <- add_10km_gridref(user_lists, "grid_ref") %>% 
+      filter(tolower(tenkm) == tolower(tenkm_area))
   }
   
   
@@ -117,9 +123,9 @@ get_user_data <- function(path, usercode = "ALL", areacode="ALL") {
 #' 
 #' @param path Path where raw csv can be found
 #' @param species Optional. Defaults to processing all birds (ALL) but can input the (english) name of a single species. 
-#' @param areacode Optional. Defaults to processing all locations (ALL) but can filter by the first two letters of a grid reference (eg. "TL").
+#' @param tenkm_area Optional. Defaults to processing all locations (ALL) but can filter by the tenkm reference.
 #' @return A data frame with rows: sub_code, english_name, scientific_name, grid_ref, longitude, latitude, date (converted into Date)
-get_bird_data <- function(path, species="ALL", areacode="ALL") {
+get_bird_data <- function(path, species="ALL", tenkm_area="ALL", year="ALL") {
   raw <- read_csv(path)
   
   # convert dates to date format
@@ -138,10 +144,16 @@ get_bird_data <- function(path, species="ALL", areacode="ALL") {
     birds <- raw
   }
   
+  if (year !="ALL") {
+    birds <-  birds %>% 
+      filter(year(date) == year)
+  }
+  
   # optional filter by grid ref
-  if (areacode!= "ALL") {
-    birds <- birds %>% 
-      filter(tolower(substring(grid_ref, 1, 2)) == tolower(areacode))
+  #optional filter by 10km grid ref - do last as it involves adding 10km grid refs
+  if (tenkm_area !="ALL") {
+    birds <- add_10km_gridref(birds, "grid_ref") %>% 
+      filter(tolower(tenkm) == tolower(tenkm_area))
   }
   
   
