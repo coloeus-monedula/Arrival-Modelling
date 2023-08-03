@@ -23,12 +23,16 @@ library("ggplot2")
 # write_csv(users_2021, file="data_temp/users_2021.csv")
 
 
-year = 2022
+year <-  2022
+zero_threshold <- 0.00001
 #TL88 swallow 2022
-bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", species = "Swallow", year = year) 
+bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", species = "CC", year = year) 
 # convert to numerical day of the year
 bird$day <- yday(bird$date)
 bird$week <- week(bird$date)
+
+birds <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", year = 2022)
+chiffchaff <- get_presenceabsence_focal(birds, species = "CC")
 
 
 # sense check - weekly reporting rate
@@ -40,8 +44,6 @@ bird_weekly <- bird %>%
 bird_weekly$day <- ((bird_weekly$week -1) * 7) + 3.5
 
 
-# TODO: add smoothed relationship w number of species recorded 
-
 # TODO: change funcs so one gives 0/1 data for all species (like simon's code), and another summarises into count and presence/absence data for a focal species
 gam_bird <- gam(presence~s(day, k=10) + s(count, k=10), method="REML",family = "binomial", data = bird) 
 
@@ -51,8 +53,11 @@ gam_bird <- gam(presence~s(day, k=10) + s(count, k=10), method="REML",family = "
 x_day <- seq(from=0, to=365, by=0.25)
 
 # median - less influencable by extreme skew
+# TODO: compare effect of count/list length
 x_count <- median(bird$count)
 y_pred <- predict(gam_bird, data.frame(day=x_day, count=x_count), type="response")
+#get rid of minute fluctuations
+y_pred <- ifelse(y_pred < zero_threshold, 0, y_pred)
 
 
 predicted <- data.frame(day = x_day, rate = y_pred)
@@ -85,5 +90,5 @@ ggplot(data=predicted, aes(x=day, y=rate)) +
 
 # par(mfrow = c(2, 2))
 # summary(gam_bird)
-gam.check(gam_bird)
+# gam.check(gam_bird)
 

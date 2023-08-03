@@ -3,6 +3,7 @@ library(dplyr)
 library(lubridate)
 library(roxygen2)
 library(BTOTools)
+library(tidyr)
 
 
 #can summarise by group i think
@@ -25,17 +26,49 @@ get_presenceabsence_data <- function(path, tenkm_area="ALL", species = "ALL", ye
       filter(tolower(tenkm) == tolower(tenkm_area))
   }
   
-  # filter by species here - also add column to count total species in a subcode list
-  # do mutate before?
-  aggregated <- filtered %>% 
+  filtered <- merge(filtered, global_species_lookup[c('english_name','code2ltr')], by="english_name")
+  filtered$english_name <- NULL
+  # remove rows with NA species code
+  filtered <- filtered[!is.na(filtered$code2ltr),]
+  
+  # if species code = ALL, returns 1/0 data
+  if (species=="ALL") {
+    filtered$presence <- 1
+    aggregated <- pivot_wider(data = filtered, id_cols = c(user_code, sub_code, grid_ref, latitude, longitude, tenkm, date), names_from = code2ltr, values_from = presence, values_fill = 0)
+    
+  } else {
+    # filter by species here - also add column to count total species in a subcode list
+    aggregated <- filtered %>% 
+      group_by(sub_code, date) %>% 
+      summarise(count = n(), 
+                #if the wanted species is observed in the list or not
+                presence = ifelse(any(tolower(code2ltr) == tolower(species)),
+                                  1, 0)
+                )
+  }
+  
+  
+  return(aggregated)
+}
+
+# given 1/0 data returns condensed list of total list length(count) and 1/0 for focal species
+get_presenceabsence_focal <- function(data, species, exclude = "latitude, longitude, focal, user_code, sub_code, grid_ref, date, tenkm"){
+  
+  data_longer <- pivot_longer(data = data, cols = !c(latitude, longitude, user_code, sub_code, grid_ref, date, tenkm), names_to = "code2ltr", values_to = "presence")
+
+  # remove rows with value 0
+  data_longer <- subset(data_longer, presence == 1)
+
+  aggregated <- data_longer %>% 
     group_by(sub_code, date) %>% 
     summarise(count = n(), 
               #if the wanted species is observed in the list or not
-              presence = ifelse(any(tolower(english_name) == tolower(species)),
+              presence = ifelse(any(tolower(code2ltr) == tolower(species)),
                                 1, 0)
-              )
+    )
   
   return(aggregated)
+    
 }
 
 #' Reading user data from source into a data frame
