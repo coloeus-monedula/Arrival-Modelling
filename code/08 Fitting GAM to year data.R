@@ -2,15 +2,13 @@ source("code/00 Helper Functions.R")
 
 library("mgcv")
 library("ggplot2")
-library("gridExtra")
 
 
-# https://fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/
 
-year <-  2019
-
-#TL88 swallow 2022
-bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", species = "SI", year = year) 
+year <-  2018
+species <- "BC"
+tenkm_area <- "TL88"
+bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = tenkm_area, species = species, year = year) 
 # convert to numerical day of the year
 bird$day <- yday(bird$date)
 bird$week <- week(bird$date)
@@ -29,7 +27,7 @@ gam_bird <- gam(presence~s(day, k=10) + s(count, k=10), method="REML",family = "
 
 
 
-predict_GAM_graph <- function(gam_bird, x_count, zero_threshold = 0.00001) {
+predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001) {
   
   # trying to predict values
   x_day <- seq(from=0, to=365, by=0.25)
@@ -44,6 +42,8 @@ predict_GAM_graph <- function(gam_bird, x_count, zero_threshold = 0.00001) {
   
   # edge case to cover graphs that start with downwards slope - only count those that come after positive slope
   first_positive <- which(first_diff>0)[1]
+  # browser()
+  
   sliced <- first_diff[first_positive: length(first_diff)]
   
   #when doing calculations ignore the initial downwards slope
@@ -58,7 +58,6 @@ predict_GAM_graph <- function(gam_bird, x_count, zero_threshold = 0.00001) {
   arrival_start <- predicted_sliced[which(predicted_sliced$rate >= ten_percent)[1],]
   
   arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
-  print(arrival_date)
   
   # browser()
   
@@ -67,32 +66,37 @@ predict_GAM_graph <- function(gam_bird, x_count, zero_threshold = 0.00001) {
     geom_col(data = bird_weekly, aes(x=day, y=rate), fill="grey75")+
     geom_line() +
     geom_vline(xintercept = first_peak$day, col="blue") +
-    geom_vline(xintercept = arrival_start$day, col="green") 
+    geom_vline(xintercept = arrival_start$day, col="green") +
+    labs(title=title, subtitle = paste("Arrival date = ", format(as.Date(arrival_date), "%b %d")), x="Day", y="Reporting rate")
 }
 
 
 
 # for single graph, might be best if just do median number of list length regardless of presence/absence
 x_count <- median(bird$count)
-graph <- predict_GAM_graph(gam_bird, x_count)
+title <- paste(species, "for", tenkm_area, "in", year)
+graph <- predict_GAM_graph(gam_bird, x_count, title)
 graph
 
 
+#dsm::rqgam_check(gam_bird)
 
-# comparing effect of list length of arrival date
-bird_seen <- bird[bird$presence==1,] %>% 
-  arrange(count)
 
-x_count_median <- median(bird_seen$count)
-x_count_low <- head(bird_seen, 1)$count
-x_count_high <- tail(bird_seen, 1)$count
-
-median <- predict_GAM_graph(gam_bird, x_count = x_count_median)
-
-low <- predict_GAM_graph(gam_bird, x_count = x_count_low)
-high <- predict_GAM_graph(gam_bird, x_count = x_count_high)
-
-grid.arrange(high, median, low)
+# EARLIER LIST LENGTH COMPARISON
+# # comparing effect of list length of arrival date
+# bird_seen <- bird[bird$presence==1,] %>% 
+#   arrange(count)
+# 
+# x_count_median <- median(bird_seen$count)
+# x_count_low <- head(bird_seen, 1)$count
+# x_count_high <- tail(bird_seen, 1)$count
+# 
+# median <- predict_GAM_graph(gam_bird, x_count = x_count_median)
+# 
+# low <- predict_GAM_graph(gam_bird, x_count = x_count_low)
+# high <- predict_GAM_graph(gam_bird, x_count = x_count_high)
+# 
+# grid.arrange(high, median, low)
 
 
 # # fit residuals
