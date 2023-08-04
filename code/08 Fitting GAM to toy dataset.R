@@ -7,7 +7,7 @@ library("gridExtra")
 
 # https://fromthebottomoftheheap.net/2014/05/09/modelling-seasonal-data-with-gam/
 
-year <-  2022
+year <-  2019
 
 #TL88 swallow 2022
 bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = "TL88", species = "SI", year = year) 
@@ -76,6 +76,7 @@ predict_GAM_graph <- function(gam_bird, x_count, zero_threshold = 0.00001) {
 x_count <- median(bird$count)
 graph <- predict_GAM_graph(gam_bird, x_count)
 graph
+
 
 
 # comparing effect of list length of arrival date
