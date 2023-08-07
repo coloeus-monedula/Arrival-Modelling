@@ -5,9 +5,53 @@ library("ggplot2")
 
 
 
-year <-  2018
-species <- "BC"
+
+predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001, small_peak_threshold = 0.1) {
+  
+  # trying to predict values
+  x_day <- seq(from=0, to=365, by=0.25)
+  
+  y_pred <- predict(gam_bird, data.frame(day=x_day, count=x_count), type="response")
+  #get rid of minute fluctuations
+  y_pred <- ifelse(y_pred < zero_threshold, 0, y_pred)
+  
+  predicted <- data.frame(day = x_day, rate = y_pred)
+  
+  diffs <- diff(predicted$rate)
+  #can't have diff for first value
+  predicted$diff <- c(NA, diffs)
+  
+  max_rate <- max(predicted$rate)
+  
+  #when doing calculations ignore the initial downwards slope if any
+  #also cuts out flat gradient ie. = 0
+  first_positive <- which(predicted$diff>0)[1]
+  sliced <- slice(predicted, first_positive:n())
+  
+  # change from increasing rate to just starting to decrease
+  # also ignores small peaks
+  change <- which(sliced$diff < 0 & sliced$rate > small_peak_threshold*max_rate)[1]
+  first_peak <- sliced[change,]
+  
+  ten_percent <- first_peak$rate * 0.1
+  #account for edge case
+  arrival_start <- sliced[which(sliced$rate >= ten_percent)[1],]
+  
+  arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
+  # put into graph
+  graph <- ggplot(data=predicted, aes(x=day, y=rate)) +
+    geom_col(data = bird_weekly, aes(x=day, y=rate), fill="grey75")+
+    geom_line() +
+    geom_vline(xintercept = first_peak$day, col="blue") +
+    geom_vline(xintercept = arrival_start$day, col="green") +
+    labs(title=title, subtitle = paste("Arrival date = ", format(as.Date(arrival_date), "%b %d")), x="Day", y="Reporting rate")
+}
+
+
+year <-  2021
+species <- "SI"
 tenkm_area <- "TL88"
+
 bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = tenkm_area, species = species, year = year) 
 # convert to numerical day of the year
 bird$day <- yday(bird$date)
@@ -23,60 +67,13 @@ bird_weekly <- bird %>%
 bird_weekly$day <- ((bird_weekly$week -1) * 7) + 3.5
 
 
-gam_bird <- gam(presence~s(day, k=10) + s(count, k=10), method="REML",family = "binomial", data = bird) 
+gam_bird <- gam(presence~s(day, k=20) + s(count, k=10), method="REML",family = "binomial", data = bird) 
 
-
-
-predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001) {
-  
-  # trying to predict values
-  x_day <- seq(from=0, to=365, by=0.25)
-  
-  y_pred <- predict(gam_bird, data.frame(day=x_day, count=x_count), type="response")
-  #get rid of minute fluctuations
-  y_pred <- ifelse(y_pred < zero_threshold, 0, y_pred)
-  
-  predicted <- data.frame(day = x_day, rate = y_pred)
-  
-  first_diff <- diff(predicted$rate)
-  
-  # edge case to cover graphs that start with downwards slope - only count those that come after positive slope
-  first_positive <- which(first_diff>0)[1]
-  # browser()
-  
-  sliced <- first_diff[first_positive: length(first_diff)]
-  
-  #when doing calculations ignore the initial downwards slope
-  predicted_sliced <- slice(predicted, first_positive:n())
-  
-  # change from increasing rate to just starting to decrease
-  change <- which(sliced<0)[1] 
-  first_peak <- predicted_sliced[change,]
-  
-  ten_percent <- first_peak$rate * 0.1
-  #account for edge case
-  arrival_start <- predicted_sliced[which(predicted_sliced$rate >= ten_percent)[1],]
-  
-  arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
-  
-  # browser()
-  
-  # put into graph
-  graph <- ggplot(data=predicted, aes(x=day, y=rate)) +
-    geom_col(data = bird_weekly, aes(x=day, y=rate), fill="grey75")+
-    geom_line() +
-    geom_vline(xintercept = first_peak$day, col="blue") +
-    geom_vline(xintercept = arrival_start$day, col="green") +
-    labs(title=title, subtitle = paste("Arrival date = ", format(as.Date(arrival_date), "%b %d")), x="Day", y="Reporting rate")
-}
-
-
-
-# for single graph, might be best if just do median number of list length regardless of presence/absence
+#dummy variable set to median of all lists
 x_count <- median(bird$count)
 title <- paste(species, "for", tenkm_area, "in", year)
 graph <- predict_GAM_graph(gam_bird, x_count, title)
-graph
+print(graph)
 
 
 #dsm::rqgam_check(gam_bird)
