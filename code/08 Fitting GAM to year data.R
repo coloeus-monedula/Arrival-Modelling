@@ -48,9 +48,9 @@ predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001
 }
 
 
-year <-  2021
-species <- "SI"
-tenkm_area <- "TL88"
+year <-  2022
+species <- "SL"
+tenkm_area <- "TL12"
 
 bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = tenkm_area, species = species, year = year) 
 # convert to numerical day of the year
@@ -74,7 +74,8 @@ x_count <- median(bird$count)
 title <- paste(species, "for", tenkm_area, "in", year)
 graph <- predict_GAM_graph(gam_bird, x_count, title)
 print(graph)
-
+print(sum(bird$presence))
+gc()
 
 #dsm::rqgam_check(gam_bird)
 
