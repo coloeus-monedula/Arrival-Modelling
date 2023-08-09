@@ -138,7 +138,8 @@ map <- get_basemap(bird_obs, 0.04)
 # convert to sf obj for plotting
 bird_obs_sp <- st_as_sf(bird_obs, coords=c("longitude","latitude"), crs=4326)
 birds_per_grid_sp <- st_sf(birds_per_grid, crs = 27700)
-birds_per_grid_sp <- rename(birds_per_grid_sp, grid_ref = grid_ref)
+# don't need i think?
+# birds_per_grid_sp <- rename(birds_per_grid_sp, grid_ref = grid_ref)
 reporting_rate_sp <- st_sf(reporting_rate, crs = 27700)
 
 

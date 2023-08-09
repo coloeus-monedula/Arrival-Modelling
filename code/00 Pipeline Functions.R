@@ -200,3 +200,49 @@ check_valid_thresholds <- function(dataset, tenkm_area, min_threshold, min_month
 }
 
 
+# takes filtered dataset
+predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.00001, small_peak_threshold = 0.1) {
+  # convert to numerical day of the year
+  bird$day <- yday(bird$date)
+  
+  gam_bird <- gam(presence~s(day, k=day_k) + s(count, k=count_k), method="REML",family = "binomial", data = bird) 
+  
+  x_count <- median(bird$count)
+  
+  # trying to predict values
+  x_day <- seq(from=0, to=365, by=0.25)
+  
+  y_pred <- predict(gam_bird, data.frame(day=x_day, count=x_count), type="response")
+  #get rid of minute fluctuations
+  y_pred <- ifelse(y_pred < zero_threshold, 0, y_pred)
+  
+  predicted <- data.frame(day = x_day, rate = y_pred)
+  
+  diffs <- diff(predicted$rate)
+  #can't have diff for first value
+  predicted$diff <- c(NA, diffs)
+  
+  max_rate <- max(predicted$rate)
+  
+  #when doing calculations ignore the initial downwards slope if any
+  #also cuts out flat gradient ie. = 0
+  first_positive <- which(predicted$diff>0)[1]
+  sliced <- slice(predicted, first_positive:n())
+  
+  # change from increasing rate to just starting to decrease
+  # also ignores small peaks
+  change <- which(sliced$diff < 0 & sliced$rate > small_peak_threshold*max_rate)[1]
+  first_peak <- sliced[change,]
+  
+  ten_percent <- first_peak$rate * 0.1
+  #account for edge case
+  arrival_start <- sliced[which(sliced$rate >= ten_percent)[1],]
+  
+  arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
+  
+  #arrival start in num, arrival start as date, list num, detection count
+  results <- list(arrival_start$day, arrival_date, nrow(bird), sum(bird$presence))
+  return(results)
+}
+
+
