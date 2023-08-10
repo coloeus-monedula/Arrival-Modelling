@@ -234,7 +234,8 @@ predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.0
   change <- which(sliced$diff < 0 & sliced$rate > small_peak_threshold*max_rate)[1]
   first_peak <- sliced[change,]
   
-  ten_percent <- first_peak$rate * 0.1
+  #account for increased baseline in case of eg. overwintering species
+  ten_percent <- first_peak$rate * 0.1 + min(predicted$rate)
   #account for edge case
   arrival_start <- sliced[which(sliced$rate >= ten_percent)[1],]
   

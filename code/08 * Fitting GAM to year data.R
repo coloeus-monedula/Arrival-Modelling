@@ -33,8 +33,9 @@ predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001
   change <- which(sliced$diff < 0 & sliced$rate > small_peak_threshold*max_rate)[1]
   first_peak <- sliced[change,]
   
-  ten_percent <- first_peak$rate * 0.1
-  #account for edge case
+  #account for increased baseline in case of eg. overwintering species
+  ten_percent <- first_peak$rate * 0.1 + min(predicted$rate)
+  #account for the downwards initial slope edge case
   arrival_start <- sliced[which(sliced$rate >= ten_percent)[1],]
   
   arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
@@ -51,6 +52,9 @@ predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001
 year <-  2022
 species <- "CC"
 tenkm_area <- "TL31"
+
+# 2022 CC TL31 to test increased baseline
+# 2022 CC TL88 for steep downslope
 
 bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = tenkm_area, species = species, year = year) 
 # convert to numerical day of the year
