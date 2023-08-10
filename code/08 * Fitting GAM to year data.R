@@ -49,8 +49,8 @@ predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001
 
 
 year <-  2022
-species <- "SL"
-tenkm_area <- "TL12"
+species <- "CC"
+tenkm_area <- "TL31"
 
 bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", tenkm_area = tenkm_area, species = species, year = year) 
 # convert to numerical day of the year

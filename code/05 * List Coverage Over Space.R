@@ -46,8 +46,6 @@ get_grid <- function(bird_obs, grid_res=10000, outvarname="grid_ref") {
   min_lat <- min(bird_obs$latitude)
   max_long <- max(bird_obs$longitude)
   min_long <- min(bird_obs$longitude)
-  height <- max_lat - min_lat
-  width <- max_long - min_long
   
   box_corners = data.frame(lon= c(min_long, max_long), lat = c(max_lat, min_lat) )
   
