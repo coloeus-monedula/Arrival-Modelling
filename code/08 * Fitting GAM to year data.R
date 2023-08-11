@@ -34,7 +34,8 @@ predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001
   first_peak <- sliced[change,]
   
   #account for increased baseline in case of eg. overwintering species
-  ten_percent <- first_peak$rate * 0.1 + min(predicted$rate)
+  # ten percent taken using the difference between first peak and minimum rate
+  ten_percent <- (first_peak$rate-min(predicted$rate))  * 0.1 + min(predicted$rate)
   #account for the downwards initial slope edge case
   arrival_start <- sliced[which(sliced$rate >= ten_percent)[1],]
   

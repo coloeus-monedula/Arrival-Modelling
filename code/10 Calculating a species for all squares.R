@@ -10,9 +10,10 @@
 
 
 source("code/00 Pipeline Functions.R")
-library("ggmap")
-library(sf)
-library(scales)
+library("sf")
+library("scales")
+library("ggplot2")
+
 
 # input data
 year <-  2022
@@ -26,14 +27,10 @@ min_threshold = 100
 min_month_threshold = 4
 min_detections = 25
 
-# bounding box latlong - currently set to whole of UK ??
-left <- -8
-bottom <- 50
-right <-2
-top <- 62
-bbox <- c(left = left, bottom = bottom , right = right, top = top)
+# detail for the basemap
+# more detail makes the basemap much larger though
+map_level = 3
 
-# ggmap(get_stamenmap(bbox, zoom= 7, maptype = "toner-lite"))
 
 species_list <- get_presenceabsence_data(path = "data_in/RENEW_extract_TL.csv", species = species, year = year)
 gc()
@@ -106,33 +103,34 @@ gam_results <- merge(gam_results, select(grid, c("grid_ref","geometry")), by="gr
 # add text
 gam_results$label <-  paste(format(as.Date(gam_results$arrival_date), "%m-%d"), "\n", gam_results$total_detections,"/",gam_results$total_lists)
 
+basemap <- get_basemap(xmin = min_long, xmax = max_long, ymin=min_lat, ymax = max_lat, margin=square_size, level = map_level)
+gc()
+
+
 # PLOTTING
-grid_sp <- st_transform(grid, crs = 4326)
-gam_results_sp <- st_sf(gam_results, crs=27700, sf_column_name = "geometry")
-gam_results_sp <- st_transform(gam_results_sp, crs=4326)
+grid_plot <- st_transform(grid, crs = 4326)
+results_plot <- st_sf(gam_results, crs=27700, sf_column_name = "geometry")
+results_plot <- st_transform(results_plot, crs=4326)
+basemap_plot <- st_transform(basemap, crs=4326)
 
 
 coverage_base <- ggplot() +
-  geom_sf(data = grid_sp, fill=NA,inherit.aes = FALSE)+
+  geom_sf(data=basemap_plot) +
+  geom_sf(data = grid_plot, fill=NA,inherit.aes = FALSE)+
   labs(title=paste("Arrival date estimations for",species,"in",year), subtitle = "Text shows month-day date and (number of detections) / (total lists)", x = "Longitude", y="Latitude") 
-
-
-
-# https://gis.stackexchange.com/questions/209314/ggmap-plot-polygon-from-shapefile 
-uk_shp <- read_sf("data_in/gb_100km.shp")
 
 # two graphs - one uses colour to show arrival date spread (also a sensecheck, to see if there are wildly inaccurate estimates)
 # the other shows number of detections since the more detections the greater the accuracy chance
 coverage_date <- coverage_base +
-  geom_sf(data=gam_results_sp, aes(fill=arrival_date)) +
-  geom_sf_text(data = gam_results_sp, aes(label=label), size=2.8, col = "white") +
+  geom_sf(data=results_plot, aes(fill=arrival_date)) +
+  geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
   scale_fill_date(date_breaks="4 day", date_labels = "%m-%d", limits = c(min(gam_results$arrival_date), max(gam_results$arrival_date)), name = "Arrival date") 
 
 print(coverage_date)
 
 coverage_n <- coverage_base +
-  geom_sf(data=gam_results_sp, aes(fill=total_detections)) +
-  geom_sf_text(data = gam_results_sp, aes(label=label), size=2.8, col = "white") +
+  geom_sf(data=results_plot, aes(fill=total_detections)) +
+  geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
   scale_fill_gradient(breaks = breaks_pretty(n=6), low = "#f6c9bb", high = "#cc0000", name="Detections")
 
 print(coverage_n)

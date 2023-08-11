@@ -5,7 +5,7 @@ library(roxygen2)
 library(BTOTools)
 library(tidyr)
 library(mgcv)
-
+library(geodata)
 
 # Functions actually used in the arrival date pipeline.
 
@@ -235,7 +235,8 @@ predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.0
   first_peak <- sliced[change,]
   
   #account for increased baseline in case of eg. overwintering species
-  ten_percent <- first_peak$rate * 0.1 + min(predicted$rate)
+  # ten percent taken using the difference between first peak and minimum rate
+  ten_percent <- (first_peak$rate-min(predicted$rate)) * 0.1 + min(predicted$rate)
   #account for edge case
   arrival_start <- sliced[which(sliced$rate >= ten_percent)[1],]
   
@@ -244,6 +245,22 @@ predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.0
   #arrival start in num, arrival start as date, list num, detection count
   results <- list(arrival_start$day, arrival_date, nrow(bird), sum(bird$presence))
   return(results)
+}
+
+# fetches shapefile of the uk (default level = 1) from gadm and crops to specified boundaries
+# recommended to gc() afterwards if low memory
+# assumes uk 27700 mapping
+get_basemap <- function(xmin, xmax, ymin, ymax, margin=0, level = 1) {
+  # dataset from 
+  # https://gadm.org/download_country.html for UK specifically
+  uk <- gadm(country = "United Kingdom", path = "data_in/", level=level)
+  uk_sp <- st_as_sf(uk)
+  uk_sp <- st_transform(uk_sp, crs = 27700)
+  
+  bbox <- c(xmin = xmin-margin, xmax = xmax+margin , ymin = ymin-margin, ymax = ymax+margin)
+  
+  uk_sp_crop <- st_crop(uk_sp, bbox)
+  return(uk_sp_crop)
 }
 
 
