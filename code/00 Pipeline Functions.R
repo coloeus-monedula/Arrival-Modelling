@@ -54,6 +54,25 @@ get_presenceabsence_data <- function(path, tenkm_area="ALL", species = "ALL", ye
   return(aggregated)
 }
 
+# given 1/0 data returns condensed list of total list length(count) and 1/0 for focal species
+get_presenceabsence_focal <- function(data, species, exclude = "latitude, longitude, focal, user_code, sub_code, grid_ref, date, tenkm"){
+  
+  data_longer <- pivot_longer(data = data, cols = !c(latitude, longitude, user_code, sub_code, grid_ref, date, tenkm), names_to = "code2ltr", values_to = "presence")
+  
+  # remove rows with value 0
+  data_longer <- subset(data_longer, presence == 1)
+  
+  aggregated <- data_longer %>% 
+    group_by(sub_code, date) %>% 
+    summarise(count = n(), 
+              #if the wanted species is observed in the list or not
+              presence = ifelse(any(tolower(code2ltr) == tolower(species)),
+                                1, 0)
+    )
+  
+  return(aggregated)
+  
+}
 
 #' Add a 10km grid reference to a dataframe
 #' 
@@ -263,4 +282,38 @@ get_basemap <- function(xmin, xmax, ymin, ymax, margin=0, level = 1) {
   return(uk_sp_crop)
 }
 
+
+# given min and max centroid eastings and northings, and how big a square is, produces a dataframe with all easting and northings centroids
+generate_prediction_coords <- function(min_easting, min_northing, max_easting, max_northing, square_size) {
+  
+  # add +1 since endpoints are inclusive
+  num_coords_east <- round((max_easting - min_easting)/square_size) + 1
+  num_coords_north <- round((max_northing - min_northing)/square_size) + 1
+  total_coords <- num_coords_east * num_coords_north
+  
+  coords <- data.frame(easting = rep(NA, total_coords), northing = rep(NA, total_coords))
+  easting <- min_easting
+  northing <- min_northing
+  index <- 1
+  
+  for (i in 1:num_coords_east) {
+    
+    for (j in 1: num_coords_north){
+      coord <- c(easting,northing)
+      coords[index,] <- coord
+      
+      northing <- northing + square_size
+      index <- index+1
+    }
+    easting <- easting + square_size
+    # resets northing
+    northing <- min_northing
+  }
+  
+  # add gridref for readability
+  coords <- coordinates_to_gridref(coords, invar_e = "easting", invar_n = "northing",output_res = square_size/1000,region = "GB")
+  
+  return(coords)
+  
+}
 

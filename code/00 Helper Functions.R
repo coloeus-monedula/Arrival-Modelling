@@ -8,25 +8,7 @@ library(tidyr)
 source("code/00 Pipeline Functions.R")
 
 
-# given 1/0 data returns condensed list of total list length(count) and 1/0 for focal species
-get_presenceabsence_focal <- function(data, species, exclude = "latitude, longitude, focal, user_code, sub_code, grid_ref, date, tenkm"){
-  
-  data_longer <- pivot_longer(data = data, cols = !c(latitude, longitude, user_code, sub_code, grid_ref, date, tenkm), names_to = "code2ltr", values_to = "presence")
 
-  # remove rows with value 0
-  data_longer <- subset(data_longer, presence == 1)
-
-  aggregated <- data_longer %>% 
-    group_by(sub_code, date) %>% 
-    summarise(count = n(), 
-              #if the wanted species is observed in the list or not
-              presence = ifelse(any(tolower(code2ltr) == tolower(species)),
-                                1, 0)
-    )
-  
-  return(aggregated)
-    
-}
 
 #' Reading user data from source into a data frame
 #' 
