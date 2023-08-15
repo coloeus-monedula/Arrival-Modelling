@@ -5,7 +5,7 @@
 # 3. if the threshold check passes, for each square run the GAM model. return arrival day + arrival date + volume of data metrics (total lists, total detections) [x]
 # 4. plot on geospatial map. adjust threshold as needed. [x]
 # 5. refactor code so it doesn't assume tenkm is always the square size []
-# 5. second stage smoothing. []
+# 5. second stage smoothing. [x]
 # 
 
 
@@ -73,38 +73,24 @@ gam_results <- gam_results[rowSums(is.na(gam_results)) != ncol(gam_results),]
 # ADDING ONTO THE GRID
 # add eastings and northings
 gam_results <- gridref_to_coordinates(gam_results, "tenkm")
-min_long <- min(gam_results$easting)
-max_long <- max(gam_results$easting)
-min_lat <- min(gam_results$northing)
-max_lat <- max(gam_results$northing)
+min_easting <- min(gam_results$easting)
+max_easting <- max(gam_results$easting)
+min_northing <- min(gam_results$northing)
+max_northing <- max(gam_results$northing)
 
-
-grid_corners <- data.frame(lon = c(min_long, max_long), lat = c(min_lat, max_lat))
-box <- st_polygon(
-  list(
-    cbind(
-      grid_corners$lon[c(1,1,2,2,1)],
-      grid_corners$lat[c(1,2,2,1,1)]
-    )
-  )
-)
-
-# eastings and northings are already in 27700 system
-box_coords <- st_sfc(box, crs=27700)
-
-# in metres
-grid <- create_grid_for_object(sp_object = box_coords, grid_resolution = square_size, region="GB", outvarname = "grid_ref")
-grid <- grid[!is.na(grid$grid_ref),]
+grid <- get_grid(min_easting, max_easting, min_northing, max_northing, square_size)
 
 gam_results <- gam_results %>% 
   rename("grid_ref" = "tenkm")
 
 # adds geometry of squares 
 gam_results <- merge(gam_results, select(grid, c("grid_ref","geometry")), by="grid_ref")
+
+
 # add text
 gam_results$label <-  paste(format(as.Date(gam_results$arrival_date), "%m-%d"), "\n", gam_results$total_detections,"/",gam_results$total_lists)
 
-basemap <- get_basemap(xmin = min_long, xmax = max_long, ymin=min_lat, ymax = max_lat, margin=square_size, level = map_level)
+basemap <- get_basemap(xmin = min_easting, xmax = max_easting, ymin=min_northing, ymax = max_northing, margin=square_size, level = map_level)
 gc()
 
 
@@ -114,32 +100,38 @@ results_plot <- st_sf(gam_results, crs=27700, sf_column_name = "geometry")
 results_plot <- st_transform(results_plot, crs=4326)
 basemap_plot <- st_transform(basemap, crs=4326)
 
-
-coverage_base <- ggplot() +
-  geom_sf(data=basemap_plot) +
-  geom_sf(data = grid_plot, fill=NA,inherit.aes = FALSE)+
-  labs(title=paste("Arrival date estimations for",species,"in",year), subtitle = "Text shows month-day date and (number of detections) / (total lists)", x = "Longitude", y="Latitude") 
-
 # two graphs - one uses colour to show arrival date spread (also a sensecheck, to see if there are wildly inaccurate estimates)
 # the other shows number of detections since the more detections the greater the accuracy chance
-coverage_date <- coverage_base +
-  geom_sf(data=results_plot, aes(fill=arrival_date)) +
-  # geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
-  scale_fill_date(breaks=breaks_pretty(n=6), date_labels = "%m-%d", limits = c(min(gam_results$arrival_date), max(gam_results$arrival_date)), name = "Arrival date") 
-
+coverage_date <- plot_coverage_date(basemap_plot, grid_plot, results_plot, show_text = FALSE)
 print(coverage_date)
+print(paste("Earliest date arrival estimation: ", min(gam_results$arrival_date)))
+print(paste("Latest date arrival estimation: ", max(gam_results$arrival_date)))
 
-coverage_n <- coverage_base +
-  geom_sf(data=results_plot, aes(fill=total_detections)) +
-  # geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
-  scale_fill_gradient(breaks = breaks_pretty(n=6), low = "#f6c9bb", high = "#cc0000", name="Detections")
+coverage_detections <- plot_coverage_detections(basemap_plot, grid_plot, results_plot, show_text = FALSE)
+print(coverage_detections)
 
-print(coverage_n)
 
-ggsave(file = "results/swallow_2022.png", coverage_n, height = 13, width = 7.5)
-ggsave(file = "results/swallow_2022_date.png", coverage_date, height = 13, width = 7.5)
 
-write_csv(x = gam_results, file = "data_temp/gam_results_swallow_2022.csv")
+# SECOND STAGE SMOOTHING
+smoothing_gam <-  gam(arrival_start ~ s(easting, northing, bs="tp", k = 20), method = "REML", data = gam_results)
+
+
+# could also make own grid with get_grid - just need to input start gridref and end gridref
+predictions <- grid %>% 
+  rename(easting = centroid_x, northing=centroid_y)
+
+predictions$predicted <- predict(smoothing_gam, predictions, type="response")
+predictions$arrival_date <- as.Date(predictions$predicted, origin = ymd(year, truncated=2))
+
+coverage_date_smoothed <- plot_coverage_date(basemap_plot, grid_plot, predictions, show_text = FALSE)
+print(coverage_date_smoothed)
+print(paste("Earliest date arrival estimation (smoothed): ", min(predictions$arrival_date)))
+print(paste("Latest date arrival estimation: ", max(predictions$arrival_date)))
+
+# ggsave(file = "results/swallow_2022.png", coverage_n, height = 13, width = 7.5)
+# ggsave(file = "results/swallow_2022_date.png", coverage_date, height = 13, width = 7.5)
+# 
+# write_csv(x = gam_results, file = "data_temp/gam_results_swallow_2022.csv")
 
 
 

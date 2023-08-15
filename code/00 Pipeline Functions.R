@@ -6,6 +6,7 @@ library(BTOTools)
 library(tidyr)
 library(mgcv)
 library(geodata)
+library(sf)
 
 # Functions actually used in the arrival date pipeline.
 
@@ -283,37 +284,62 @@ get_basemap <- function(xmin, xmax, ymin, ymax, margin=0, level = 1) {
 }
 
 
-# given min and max centroid eastings and northings, and how big a square is, produces a dataframe with all easting and northings centroids
-generate_prediction_coords <- function(min_easting, min_northing, max_easting, max_northing, square_size) {
+get_grid <- function(min_easting, max_easting, min_northing, max_northing, square_size) {
+  grid_corners <- data.frame(lon = c(min_easting, max_easting), lat = c(min_northing, max_northing))
+  box <- st_polygon(
+    list(
+      cbind(
+        grid_corners$lon[c(1,1,2,2,1)],
+        grid_corners$lat[c(1,2,2,1,1)]
+      )
+    )
+  )
   
-  # add +1 since endpoints are inclusive
-  num_coords_east <- round((max_easting - min_easting)/square_size) + 1
-  num_coords_north <- round((max_northing - min_northing)/square_size) + 1
-  total_coords <- num_coords_east * num_coords_north
+  # eastings and northings are already in 27700 system
+  box_coords <- st_sfc(box, crs=27700)
   
-  coords <- data.frame(easting = rep(NA, total_coords), northing = rep(NA, total_coords))
-  easting <- min_easting
-  northing <- min_northing
-  index <- 1
+  # in metres
+  grid <- create_grid_for_object(sp_object = box_coords, grid_resolution = square_size, region="GB", outvarname = "grid_ref")
+  grid <- grid[!is.na(grid$grid_ref),]
   
-  for (i in 1:num_coords_east) {
-    
-    for (j in 1: num_coords_north){
-      coord <- c(easting,northing)
-      coords[index,] <- coord
-      
-      northing <- northing + square_size
-      index <- index+1
-    }
-    easting <- easting + square_size
-    # resets northing
-    northing <- min_northing
+
+}
+
+
+# assumes variable called arrival_date for now
+plot_coverage_date <- function(basemap, grid, results, show_text = TRUE) {
+  graph <- ggplot() +
+  geom_sf(data=basemap) +
+  geom_sf(data = grid, fill=NA,inherit.aes = FALSE)+
+  labs(title=paste("Arrival date estimations for",species,"in",year), x = "Longitude", y="Latitude") +
+  geom_sf(data=results, aes(fill=arrival_date)) +
+  scale_fill_date(breaks=breaks_pretty(n=6), date_labels = "%m-%d", limits = c(min(results$arrival_date), max(results$arrival_date)), name = "Arrival date") 
+  
+  
+  if (show_text) {
+    graph <- graph +
+      geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
+      labs(subtitle = "Text shows month-day date and (number of detections) / (total lists)")
   }
   
-  # add gridref for readability
-  coords <- coordinates_to_gridref(coords, invar_e = "easting", invar_n = "northing",output_res = square_size/1000,region = "GB")
-  
-  return(coords)
+  return(graph)
   
 }
 
+plot_coverage_detections <- function(basemap, grid, results, show_text = TRUE) {
+  graph <- ggplot() +
+  geom_sf(data=basemap) +
+  geom_sf(data = grid, fill=NA,inherit.aes = FALSE)+
+  labs(title=paste("Volume of data used to estimate arrival date for",species,"in",year), x = "Longitude", y="Latitude") +
+  geom_sf(data=results_plot, aes(fill=total_detections)) +
+  scale_fill_gradient(breaks = breaks_pretty(n=6), low = "#f6c9bb", high = "#cc0000", name="Detections")
+  
+  
+  if (show_text) {
+    graph <- graph +
+    geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
+    labs(subtitle = "Text shows month-day date and (number of detections) / (total lists)")
+  }
+  
+  return(graph)
+}

@@ -11,11 +11,11 @@ start_end <- gridref_to_coordinates(test, "gridref")
 # get all squares and their easting/northing
 
 # TL30 gets 98.5. redoing TL31 = 98.5
+# TL88 previously was 2022-04-07 but now is 2022-04-12. considering this is the most surveyed square, smoothing should be weighted towards this date more
 
 
 
-
-coords <- generate_prediction_coords(min_easting = start_end[1,]$easting, min_northing = start_end[1,]$northing, max_easting = start_end[2,]$easting, max_northing = start_end[2,]$northing, square_size = square_size )
+coords <- get_grid(min_easting = start_end[1,]$easting, min_northing = start_end[1,]$northing, max_easting = start_end[2,]$easting, max_northing = start_end[2,]$northing, square_size = square_size )
 
 coords$predicted <- predict(gam_smoothing, coords, type="response")
 coords$predicted_date <- as.Date(coords$predicted, origin = ymd(year, truncated=2))
