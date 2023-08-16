@@ -7,16 +7,27 @@ library(tidyr)
 library(mgcv)
 library(geodata)
 library(sf)
+library("scales")
+library("ggplot2")
 
 # Functions actually used in the arrival date pipeline.
 
+#once in presence absence format does some data cleaning - namely, removing of lists with small n which may not count as "complete" lists
+clean_data <- function(dataset, n_threshold) {
+  dataset <- dataset %>% 
+    filter(count > n_threshold)
+  
+  return(dataset)
+}
+
 # produces subcode, date, tenkm code, list length, presence/absence (1/0)
-get_presenceabsence_data <- function(path, tenkm_area="ALL", species = "ALL", year="ALL") {
+get_presenceabsence_data <- function(path,square_size, grid_ref_in="ALL", species = "ALL", year="ALL") {
   raw <- read_csv(path)
   
   # convert dates to date format
   raw$date <- dmy(raw$obs_dt)
   
+  filtered <- raw
   #optional filter by year 
   if (year!="ALL") {
     filtered <-  raw %>% 
@@ -24,11 +35,24 @@ get_presenceabsence_data <- function(path, tenkm_area="ALL", species = "ALL", ye
   }
   
   filtered <- add_10km_gridref(filtered, "grid_ref")
-  #optional filter by 10km grid ref - do last as it involves adding 10km grid refs
-  if (tenkm_area!="ALL") {
-    filtered <- filtered %>% 
-      filter(tolower(tenkm) == tolower(tenkm_area))
+  km_ref <- "tenkm"
+
+  # adds respective sized grid references and changes km_ref to whatever named column
+  if (square_size == 20000) {
+    filtered <- rescale_10km_to_20km(filtered, "tenkm")
+    km_ref <- "segref"
+  } else if (square_size == 50000) {
+    filtered <- rescale_10km_to_50km(filtered, "tenkm")
+    km_ref <- "quadref"
+  }
+  
+  
+  #optional filter by 10km/20km/50km grid ref 
+  if (grid_ref_in!="ALL") {
+      filtered <- filtered %>% 
+        filter(tolower(.data[[km_ref]]) == tolower(grid_ref_in))
   } 
+  
   
   filtered <- merge(filtered, global_species_lookup[c('english_name','code2ltr')], by="english_name")
   filtered$english_name <- NULL
@@ -38,17 +62,17 @@ get_presenceabsence_data <- function(path, tenkm_area="ALL", species = "ALL", ye
   # if species code = ALL, returns 1/0 data
   if (species=="ALL") {
     filtered$presence <- 1
-    aggregated <- pivot_wider(data = filtered, id_cols = c(user_code, sub_code, grid_ref, latitude, longitude, tenkm, date), names_from = code2ltr, values_from = presence, values_fill = 0)
+    aggregated <- pivot_wider(data = filtered, id_cols = c(user_code, sub_code, grid_ref, latitude, longitude, .data[[km_ref]], date), names_from = code2ltr, values_from = presence, values_fill = 0)
     
   } else {
     # filter by species here - also add column to count total species in a subcode list
     aggregated <- filtered %>% 
-      group_by(sub_code, date, tenkm) %>% 
+      group_by(sub_code, date, .data[[km_ref]]) %>% 
       summarise(count = n(), 
                 #if the wanted species is observed in the list or not
                 presence = ifelse(any(tolower(code2ltr) == tolower(species)),
                                   1, 0)
-      )
+      ) %>% rename("grid_ref" = {{km_ref}})
   }
   
   
@@ -56,24 +80,27 @@ get_presenceabsence_data <- function(path, tenkm_area="ALL", species = "ALL", ye
 }
 
 # given 1/0 data returns condensed list of total list length(count) and 1/0 for focal species
-get_presenceabsence_focal <- function(data, species, exclude = "latitude, longitude, focal, user_code, sub_code, grid_ref, date, tenkm"){
-  
-  data_longer <- pivot_longer(data = data, cols = !c(latitude, longitude, user_code, sub_code, grid_ref, date, tenkm), names_to = "code2ltr", values_to = "presence")
-  
-  # remove rows with value 0
-  data_longer <- subset(data_longer, presence == 1)
-  
-  aggregated <- data_longer %>% 
-    group_by(sub_code, date) %>% 
-    summarise(count = n(), 
-              #if the wanted species is observed in the list or not
-              presence = ifelse(any(tolower(code2ltr) == tolower(species)),
-                                1, 0)
-    )
-  
-  return(aggregated)
-  
-}
+# CURRENTLY DOESN'T WORK.
+# get_presenceabsence_focal <- function(data, species, exclude = "latitude, longitude, focal, user_code, sub_code, grid_ref, date", exclude_gridref = "tenkm"){
+#   
+#   exclude_cols <- paste(exclude, exclude_gridref, sep = ", ")
+#   
+#   data_longer <- pivot_longer(data = data, cols = !c(exclude_cols), names_to = "code2ltr", values_to = "presence")
+#   
+#   # remove rows with value 0
+#   data_longer <- subset(data_longer, presence == 1)
+#   
+#   aggregated <- data_longer %>% 
+#     group_by(sub_code, date) %>% 
+#     summarise(count = n(), 
+#               #if the wanted species is observed in the list or not
+#               presence = ifelse(any(tolower(code2ltr) == tolower(species)),
+#                                 1, 0)
+#     )
+#   
+#   return(aggregated)
+#   
+# }
 
 #' Add a 10km grid reference to a dataframe
 #' 
@@ -171,31 +198,31 @@ get_interval_lists <- function(data_list, interval,id_code = "ALL", is_bird=FALS
 
 
 #function to check if for a given dataset, the chosen tenkm area and year has enough lists and detections
-check_valid_thresholds <- function(dataset, tenkm_area, min_threshold, min_month_threshold, min_detections, verbose = FALSE) {
-  tenkm_dataset <- dataset %>% 
-    filter(tolower(tenkm) == tolower(tenkm_area))
+check_valid_thresholds <- function(dataset, square_area, min_threshold, min_month_threshold, min_detections, verbose = FALSE) {
+  square_dataset <- dataset %>% 
+    filter(tolower(grid_ref) == tolower(square_area))
   
   #check total lists
-  total_lists <- nrow(tenkm_dataset)
+  total_lists <- nrow(square_dataset)
   if (total_lists < min_threshold) {
     if (verbose) {
-      print(paste(tenkm_area, "did not pass minimum list threshold of",min_threshold,"(had",total_lists,"instead)"))
+      print(paste(square_area, "did not pass minimum list threshold of",min_threshold,"(had",total_lists,"instead)"))
     }
     return(FALSE)
   }
   else if (verbose) {
-    print(paste("Number of total lists for",tenkm_area,":",total_lists))
+    print(paste("Number of total lists for",square_area,":",total_lists))
   }
   
   #check list coverage
-  min_months <- get_interval_lists(tenkm_dataset, "month") %>% 
+  min_months <- get_interval_lists(square_dataset, "month") %>% 
     arrange(n) %>% 
     head(1)
   min_n <- min_months$n
   
   if (min_n < min_month_threshold) {
     if (verbose) {
-      print(paste(tenkm_area, "did not pass the minimum per month list threshold of",min_month_threshold,"(had",min_n,"instead)"))
+      print(paste(square_area, "did not pass the minimum per month list threshold of",min_month_threshold,"(had",min_n,"instead)"))
     }
     return(FALSE)
   } else if (verbose) {
@@ -203,15 +230,15 @@ check_valid_thresholds <- function(dataset, tenkm_area, min_threshold, min_month
   }
   
   #check detection total
-  detections <- sum(tenkm_dataset$presence)
+  detections <- sum(square_dataset$presence)
   if (detections < min_detections) {
     if (verbose) {
-      print(paste(tenkm_area,"did not pass the minimum species detection threshold of",min_detections,"(had",detections,"instead)"))
+      print(paste(square_area,"did not pass the minimum species detection threshold of",min_detections,"(had",detections,"instead)"))
     }
     
     return(FALSE)
   } else if (verbose) {
-    print(paste("Number of total detections for",tenkm_area,":",detections))
+    print(paste("Number of total detections for",square_area,":",detections))
   }
   
   return(TRUE)
@@ -311,15 +338,15 @@ plot_coverage_date <- function(basemap, grid, results, show_text = TRUE) {
   graph <- ggplot() +
   geom_sf(data=basemap) +
   geom_sf(data = grid, fill=NA,inherit.aes = FALSE)+
-  labs(title=paste("Arrival date estimations for",species,"in",year), x = "Longitude", y="Latitude") +
+  labs(title=paste("Arrival date estimations for",species,"in",year), x = "Longitude", y="Latitude", subtitle = paste("Earliest estimated arrival =", min(results$arrival_date), ", Latest estimated arrival =", max(results$arrival_date))) +
   geom_sf(data=results, aes(fill=arrival_date)) +
-  scale_fill_date(breaks=breaks_pretty(n=6), date_labels = "%m-%d", limits = c(min(results$arrival_date), max(results$arrival_date)), name = "Arrival date") 
+  scale_fill_date(breaks=breaks_pretty(n=6), date_labels = "%m-%d", limits = c(min(results$arrival_date), max(results$arrival_date)), name = "Arrival date")
   
   
   if (show_text) {
     graph <- graph +
       geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
-      labs(subtitle = "Text shows month-day date and (number of detections) / (total lists)")
+      labs(caption = "Text in squares shows month-day date and (number of detections) / (total lists)")
   }
   
   return(graph)
@@ -338,7 +365,7 @@ plot_coverage_detections <- function(basemap, grid, results, show_text = TRUE) {
   if (show_text) {
     graph <- graph +
     geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
-    labs(subtitle = "Text shows month-day date and (number of detections) / (total lists)")
+    labs(subtitle = "Text in squares shows month-day date and (number of detections) / (total lists)")
   }
   
   return(graph)

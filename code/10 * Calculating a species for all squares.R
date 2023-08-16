@@ -10,9 +10,7 @@
 
 
 source("code/00 Pipeline Functions.R")
-library("sf")
-library("scales")
-library("ggplot2")
+
 
 
 # input data
@@ -20,30 +18,33 @@ year <-  2022
 species <-  "SL"
 
 # 10000, 20000, or 50000m
-square_size <- 10000
+square_size <- 20000
 
 # thresholds
 min_threshold = 100
 min_month_threshold = 4
 min_detections = 25
+#for precleaning
+n_threshold = 1
 
 # detail for the basemap
 # more detail makes the basemap much larger though
-map_level = 1
+map_level = 2
 
 
-# species_list <- get_presenceabsence_data(path = "data_in/RENEW_extract_TL.csv", species = species, year = year)
-# gc()
+species_list <- get_presenceabsence_data(path = "data_in/RENEW_extract_TL.csv", square_size = square_size, species = species, year = year)
+gc()
 
 # this is whole species data for swallow 2022
 # write_csv(x = species_list, file = "data_temp/swallow_2022.csv")
-species_list <- read_csv(file = "data_temp/swallow_2022.csv")
+# species_list <- read_csv(file = "data_temp/swallow_2022.csv")
+species_list <- clean_data(species_list, n_threshold)
 
-squares_list <- sort(unique(species_list$tenkm))
+squares_list <- sort(unique(species_list$grid_ref))
 
 # empty dataframe for storing data
 # only stores results where a GAM has been applied
-gam_results <- data.frame(tenkm = rep(NA, length(squares_list)), arrival_start=rep(NA, length(squares_list)), arrival_date=rep(NA, length(squares_list)), total_lists=rep(NA, length(squares_list)), total_detections=rep(NA, length(squares_list)))
+gam_results <- data.frame(grid_ref = rep(NA, length(squares_list)), arrival_start=rep(NA, length(squares_list)), arrival_date=rep(NA, length(squares_list)), total_lists=rep(NA, length(squares_list)), total_detections=rep(NA, length(squares_list)))
 
 gam_results$arrival_date <- dmy(gam_results$arrival_date)
 
@@ -51,11 +52,12 @@ gam_results$arrival_date <- dmy(gam_results$arrival_date)
 # fits GAM and predicts date for all grid references that pass the threshold
 counter <-  1
 for (square_area in squares_list) {
+  
   if (check_valid_thresholds(species_list, square_area, min_threshold, min_month_threshold, min_detections, verbose=TRUE)) {
     
-    #filters by tenkm area
+    #filters by grid ref
     filtered <- species_list %>% 
-      filter(tenkm == square_area)
+      filter(grid_ref == square_area)
     
     results <- predict_arrival(filtered)
     results <- c(square_area, results)
@@ -72,16 +74,14 @@ gam_results <- gam_results[rowSums(is.na(gam_results)) != ncol(gam_results),]
 
 # ADDING ONTO THE GRID
 # add eastings and northings
-gam_results <- gridref_to_coordinates(gam_results, "tenkm")
+# TODO: gridref_to_coordinates currently doesn't work for 20km and 50km
+gam_results <- gridref_to_coordinates(gam_results, "grid_ref")
 min_easting <- min(gam_results$easting)
 max_easting <- max(gam_results$easting)
 min_northing <- min(gam_results$northing)
 max_northing <- max(gam_results$northing)
 
 grid <- get_grid(min_easting, max_easting, min_northing, max_northing, square_size)
-
-gam_results <- gam_results %>% 
-  rename("grid_ref" = "tenkm")
 
 # adds geometry of squares 
 gam_results <- merge(gam_results, select(grid, c("grid_ref","geometry")), by="grid_ref")
@@ -103,9 +103,9 @@ basemap_plot <- st_transform(basemap, crs=4326)
 # two graphs - one uses colour to show arrival date spread (also a sensecheck, to see if there are wildly inaccurate estimates)
 # the other shows number of detections since the more detections the greater the accuracy chance
 coverage_date <- plot_coverage_date(basemap_plot, grid_plot, results_plot, show_text = FALSE)
-print(coverage_date)
 print(paste("Earliest date arrival estimation: ", min(gam_results$arrival_date)))
 print(paste("Latest date arrival estimation: ", max(gam_results$arrival_date)))
+print(coverage_date)
 
 coverage_detections <- plot_coverage_detections(basemap_plot, grid_plot, results_plot, show_text = FALSE)
 print(coverage_detections)
@@ -114,7 +114,6 @@ print(coverage_detections)
 
 # SECOND STAGE SMOOTHING
 smoothing_gam <-  gam(arrival_start ~ s(easting, northing, bs="tp", k = 20), method = "REML", data = gam_results)
-
 
 # could also make own grid with get_grid - just need to input start gridref and end gridref
 predictions <- grid %>% 

@@ -1,4 +1,4 @@
-source("code/00 Helper Functions.R")
+source("code/00 Pipeline Functions.R")
 
 library("mgcv")
 library("ggplot2")
@@ -52,7 +52,8 @@ predict_GAM_graph <- function(gam_bird, x_count, title, zero_threshold = 0.00001
 
 year <-  2022
 species <- "SL"
-tenkm_area <- "NY23"
+grid_ref_in <- "NY23"
+square_size = 20000
 
 # 2022 CC TL31 to test increased baseline
 # 2022 CC TL88 for steep downslope
@@ -60,7 +61,14 @@ tenkm_area <- "NY23"
 # dates which give arrival times in june:
 # 2022 SL SN41
 # 
-bird <- get_presenceabsence_data("data_in/RENEW_extract.csv", tenkm_area = tenkm_area, species = species, year = year) 
+bird <- get_presenceabsence_data("data_in/RENEW_extract_TL.csv", square_size = square_size, grid_ref_in = "TL_M", species = species, year = year)
+gc()
+
+# bird <-  read_csv("data_temp/swallow_2022.csv")
+# bird <- bird %>% 
+#   filter(tenkm==tenkm_area)
+
+bird <- clean_data(bird, n_threshold = 1)
 # convert to numerical day of the year
 bird$day <- yday(bird$date)
 bird$week <- week(bird$date)
@@ -79,7 +87,7 @@ gam_bird <- gam(presence~s(day, k=20) + s(count, k=10), method="REML",family = "
 
 #dummy variable set to median of all lists
 x_count <- median(bird$count)
-title <- paste(species, "for", tenkm_area, "in", year)
+title <- paste(species, "for", grid_ref_in, "in", year)
 graph <- predict_GAM_graph(gam_bird, x_count, title)
 print(graph)
 print(sum(bird$presence))
