@@ -1,17 +1,16 @@
 source("code/00 * Pipeline Functions.R")
 
 
-# TODO: function for without intercept lines
-
 ### This is a script that runs and fits a GAM model for a single year, species, and grid reference, and outputs a graph with weekly count, fitted prediction curve, and lines for showing where the first peak of a curve is as well as the arrival date. It is used in conjunction with the main script to investigate specific squares further. 
 
 ### Inputs
 # 2022 CC TL31 to test increased baseline
 # 2022 CC TL88 for steep downslope
-# 2022 CC SV91 has issues
+# 2022 CC SJ92 - the january peak is intense enough to be considered the "first peak" - might have to switch to discovering maximum peak?
+# 2022 CC SV91 - no peak
 year <-  2022
 species <- "CC"
-grid_ref_in <- "SV91"
+grid_ref_in <- "SJ92"
 #10000 20000 or 50000
 square_size <-  10000
 n_threshold <- 1

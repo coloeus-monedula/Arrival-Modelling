@@ -24,6 +24,8 @@ n_threshold = 1
 map_level = 1
 # shows inside each square estimated arrival date and indicator of data volume (detection / list count). not recommended for smaller squares/maps that cover a large area. 
 show_text = FALSE
+# outputs text during threshold checking - useful for seeing why a grid square was rejected
+verbose = TRUE
 
 
 ### Getting presence absence data for species
@@ -49,7 +51,7 @@ gam_results$arrival_date <- dmy(gam_results$arrival_date)
 counter <-  1
 for (square_area in squares_list) {
   
-  if (check_valid_thresholds(species_list, square_area, min_threshold, min_month_threshold, min_detections, verbose=TRUE)) {
+  if (check_valid_thresholds(species_list, square_area, min_threshold, min_month_threshold, min_detections, verbose=verbose)) {
     
     #filters by grid ref
     filtered <- species_list %>% 
@@ -59,6 +61,9 @@ for (square_area in squares_list) {
     
     # if arrival date can be calculated
     if (results$completed) {
+      #removes completed flag
+      results <- results[names(results) !="completed"]
+      
       results <- c(square_area, results)
       gam_results[counter,] <- results
       counter <- counter+1
@@ -110,7 +115,7 @@ basemap_plot <- st_transform(basemap, crs=4326)
 # the other shows number of detections used to calculate each arrival date estimate
 coverage_date <- plot_coverage_date(basemap_plot, grid_plot, results_plot, show_text = show_text)
 print(coverage_date)
-coverage_detections <- plot_coverage_detections(basemap_plot, grid_plot, results_plot, show_text = FALSE)
+coverage_detections <- plot_coverage_detections(basemap_plot, grid_plot, results_plot, show_text = show_text)
 print(coverage_detections)
 
 
@@ -124,7 +129,7 @@ predictions <- grid %>%
 predictions$predicted <- predict(smoothing_gam, predictions, type="response")
 predictions$arrival_date <- as.Date(predictions$predicted, origin = ymd(year, truncated=2))
 
-coverage_date_smoothed <- plot_coverage_date(basemap_plot, grid_plot, predictions, show_text = FALSE)
+coverage_date_smoothed <- plot_coverage_date(basemap_plot, grid_plot, predictions, show_text = show_text)
 print(coverage_date_smoothed)
 
 

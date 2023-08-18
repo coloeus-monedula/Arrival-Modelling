@@ -10,9 +10,15 @@ library(sf)
 library("scales")
 library("ggplot2")
 
-# Functions actually used in the arrival date pipeline.
+### Functions used in the pipeline.
 
-#once in presence absence format does some data cleaning - namely, removing of lists with small n which may not count as "complete" lists
+#' Cleans presence-absence data
+#'
+#' Given a dataset already sorted into presence-absence lists, filters out lists with species length numbers below a specified threshold.
+#' @param dataset Dataset to clean
+#' @param n_threshold Threshold. If list length is equal to or below this threshold, the list is filtered out
+#' @return Filtered dataset
+#'
 clean_data <- function(dataset, n_threshold) {
   dataset <- dataset %>% 
     filter(count > n_threshold)
@@ -20,7 +26,19 @@ clean_data <- function(dataset, n_threshold) {
   return(dataset)
 }
 
-# produces subcode, date, tenkm code, list length, presence/absence (1/0)
+
+#' Create a presence absence dataframe from a CSV
+#' 
+#' Takes a pathfile to raw csv data and summarises the data for a given year and grid reference in the form of a presence (1) or absence (0) tally for a species, with the option for the tally to be for all species or just for one focal species (in which case, a column with list length is added).
+#' 
+#' @param path filepath to raw csv. The csv should have columns called "obs_dt", "grid_ref", "english_name", "user_code", "sub_code", "latitude", "longitude".
+#' @param square_size size of the intended grid reference to use in metres - either 10000 (10km), 20000 (20km), or 50000 (50km). 
+#' @param grid_ref_in Optional filter by grid reference. Needs to be the same size specified in square_size. 
+#' @param species Optional filter by 2 letter species code. If = "ALL", then returns 1/0 data for all species.
+#' @param year Optional filter by year.
+#' @return If species = "ALL", a dataframe where each row is a single complete list, with columns for every possible species and a 1 underneath a column to signify a species sighting, or 0 to signify no sighting. 
+#' 
+#' Otherwise, a dataframe is returned where each row is a single complete list, with a 'presence' column for 1/0 data for a specific species, a 'count' column to show the list length, and a 'grid_ref' column that is for the size specified in square_size. Eg. if square_size = 20000, then the grid reference would be in TL_M format.
 get_presenceabsence_data <- function(path,square_size, grid_ref_in="ALL", species = "ALL", year="ALL") {
   raw <- read_csv(path)
   
@@ -37,7 +55,7 @@ get_presenceabsence_data <- function(path,square_size, grid_ref_in="ALL", specie
   filtered <- add_10km_gridref(filtered, "grid_ref")
   km_ref <- "tenkm"
 
-  # adds respective sized grid references and changes km_ref to whatever named column
+  # adds respective sized grid references and changes km_ref to respective named column
   if (square_size == 20000) {
     filtered <- rescale_10km_to_20km(filtered, "tenkm")
     km_ref <- "segref"
@@ -45,7 +63,6 @@ get_presenceabsence_data <- function(path,square_size, grid_ref_in="ALL", specie
     filtered <- rescale_10km_to_50km(filtered, "tenkm")
     km_ref <- "quadref"
   }
-  
   
   #optional filter by 10km/20km/50km grid ref 
   if (grid_ref_in!="ALL") {
@@ -131,7 +148,7 @@ add_10km_gridref <- function(df, invar) {
 #' 
 #' @param data_list dataset with "date" column in Date format. 
 #' @param interval "month", "week", "day", or "10 days"/"10 day". How long each interval should be.
-#' @param id_code Usercode or bird species (species code) to search for. Case insensitive. If id_code = "ALL", does not do any filtering.
+#' @param id_code Usercode or bird species (2 letter species code) to search for. Case insensitive. If id_code = "ALL", does not do any filtering.
 #' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
 #' @return Dataframe with columns: date and n (where n is count), sorted by date.
 get_interval_lists <- function(data_list, interval,id_code = "ALL", is_bird=FALSE) {
@@ -171,7 +188,17 @@ get_interval_lists <- function(data_list, interval,id_code = "ALL", is_bird=FALS
 }
 
 
-#function to check if for a given dataset, the chosen tenkm area and year has enough lists and detections
+#' Thresholding for GAM modelling
+#' 
+#' Checks each grid reference square for whether or not it passes specified thresholds - minimum number of lists, minimum number of detection of a species, and minimum lists per month.
+#' 
+#' @param dataset Presence-absence dataset for a specific species
+#' @param square_area Grid reference size in metres (10000, 20000, 50000)
+#' @param min_threshold Minimum amount of lists needed. If below threshold, square is rejected.
+#' @param min_month_threshold Minimum amount of lists in a month needed. If below threshold, square is rejected
+#' @param min_detections Minimum amount of lists with detection of species needed. If below threshold, square is rejected
+#' @param verbose If TRUE, outputs text at each threshold (of why it passes or is rejected). Default set to FALSE.
+#' @return TRUE if all thresholds have been passed, FALSE if not.
 check_valid_thresholds <- function(dataset, square_area, min_threshold, min_month_threshold, min_detections, verbose = FALSE) {
   square_dataset <- dataset %>% 
     filter(tolower(grid_ref) == tolower(square_area))
@@ -221,7 +248,20 @@ check_valid_thresholds <- function(dataset, square_area, min_threshold, min_mont
 }
 
 
-# takes filtered dataset
+
+#' Predicts estimated arrival date for a species, year and grid reference
+#' 
+#' Creates a GAM using presence-absence data for a specific species, year and grid reference. The model is then used to predict species curve throughout the year, which is then used to find first maximum and the date where the reporting rate is ten percent of the first maximum (this date is used as arrival date).
+#' 
+#' The equation used in the model is presence ~ day + count, and is binomial. The arrival date is calculated by taking the maximum rate - minimum reporting rate, then finding ten percent of that.
+#' 
+#' @param bird presence-absence dataset
+#' @param day_k k value for the day smooth. Default is 20
+#' @param count_k k value for the count smooth. Default is 10
+#' @param zero_threshold Threshold that below which reporting rate numbers are ignored/turned to 0. Default is 0.00001
+#' @param small_peak_threshold Threshold that when multiplied with the maximum reporting rate in the curve, any peaks below this value is ignored. Default set to 0.1 ie. 10% of the maximum reporting rate.
+#' @param to_graph If TRUE, returns data for graphing of an individual square (first peak value, predicted curve, arrival start value, arrival date value). If FALSE, returns data for heatmapping of all squares (arrival start as a number, arrival start as date, species count, detection count). Default set to FALSE.
+#' @return A list with a completed flag set to TRUE or FALSE, alongside relevant information depending on value of the to_graph flag.
 predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.00001, small_peak_threshold = 0.1, to_graph= FALSE) {
   # convert to numerical day of the year
   bird$day <- yday(bird$date)
@@ -288,12 +328,18 @@ predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.0
   return(results)
 }
 
-# fetches shapefile of the uk (default level = 1) from gadm and crops to specified boundaries
-# recommended to gc() afterwards if low memory
-# assumes uk 27700 mapping
+
+#' Get UK basemap for specified dimensions
+#' 
+#' Downloads an administrative boundaries shapefile from GADM (https://gadm.org/download_country.html) for the UK, then crops it to specified easting and northing boundaries. Ie. boundaries should be specified in 27700 mapping.
+#' @param xmin Left boundary
+#' @param xmax Right boundary
+#' @param ymin Bottom boundary
+#' @param ymax Top boundary
+#' @param margin Optional extra margin to add (in metres) to each side. Default 0.
+#' @param level Level of subdivision for map. Higher the number, more detailed the map, but the larger the file becomes. Default 1.
+#' @return Cropped basemap as a spatial object
 get_basemap <- function(xmin, xmax, ymin, ymax, margin=0, level = 1) {
-  # dataset from 
-  # https://gadm.org/download_country.html for UK specifically
   uk <- gadm(country = "United Kingdom", path = "data_in/", level=level)
   uk_sp <- st_as_sf(uk)
   uk_sp <- st_transform(uk_sp, crs = 27700)
@@ -305,7 +351,14 @@ get_basemap <- function(xmin, xmax, ymin, ymax, margin=0, level = 1) {
 }
 
 
-
+#' Create square grid for mapping
+#' 
+#' Given northing and easting boundaries and grid resolution, creates a square grid for spatial mapping
+#' @param min_easting Minimum easting value
+#' @param max_easting Maximum easting value
+#' @param min_northing Minimum northing value
+#' @param max_northing Maximum northing value
+#' @param square_size Size of squares that should be produced in metres (10000, 20000, or 50000) 
 get_grid <- function(min_easting, max_easting, min_northing, max_northing, square_size) {
   grid_corners <- data.frame(lon = c(min_easting, max_easting), lat = c(min_northing, max_northing))
   box <- st_polygon(
@@ -328,8 +381,14 @@ get_grid <- function(min_easting, max_easting, min_northing, max_northing, squar
 }
 
 
-# assumes variable called arrival_date for now
-plot_coverage_date <- function(basemap, grid, results, show_text = TRUE) {
+#' Plot estimated arrival date heatmap
+#' 
+#' @param basemap Basemap
+#' @param grid Square grid overlay
+#' @param results GAM results with a Date column called arrival_date
+#' @param show_text If set to TRUE, adds arrival date and volume of data indication (number of detections / total lists) inside each grid square. Use only when squares are large enough.
+#' @return Map showing estimated arrival dates for a species, with a colour legend showing spread of estimated arrival dates
+plot_coverage_date <- function(basemap, grid, results, show_text) {
   graph <- ggplot() +
   geom_sf(data=basemap) +
   geom_sf(data = grid, fill=NA,inherit.aes = FALSE)+
@@ -340,7 +399,7 @@ plot_coverage_date <- function(basemap, grid, results, show_text = TRUE) {
   
   if (show_text) {
     graph <- graph +
-      geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
+      geom_sf_text(data = results, aes(label=label), size=2.8, col = "white") +
       labs(caption = "Text in squares shows month-day date and (number of detections) / (total lists)")
   }
   
@@ -348,18 +407,26 @@ plot_coverage_date <- function(basemap, grid, results, show_text = TRUE) {
   
 }
 
+#' Plot estimated arrival date heatmap but with detection number as colour legend
+#' 
+#' Can only be used during first stage GAM modelling. Gives a clearer indication of number of detections used to calculate each arrival date estimate.
+#' @param basemap Basemap
+#' @param grid Square grid overlay
+#' @param results GAM results with a Date column called arrival_date as well as a column called total_detections
+#' @param show_text If set to TRUE, adds arrival date and volume of data indication (number of detections / total lists) inside each grid square. Use only when squares are large enough.
+#' @return Map indicating squares that have had GAM models fitted on the data, as well as volume of data used for each model.
 plot_coverage_detections <- function(basemap, grid, results, show_text = TRUE) {
   graph <- ggplot() +
   geom_sf(data=basemap) +
   geom_sf(data = grid, fill=NA,inherit.aes = FALSE)+
   labs(title=paste("Volume of data used to estimate arrival date for",species,"in",year), x = "Longitude", y="Latitude") +
-  geom_sf(data=results_plot, aes(fill=total_detections)) +
+  geom_sf(data=results, aes(fill=total_detections)) +
   scale_fill_gradient(breaks = breaks_pretty(n=6), low = "#f6c9bb", high = "#cc0000", name="Detections")
   
   
   if (show_text) {
     graph <- graph +
-    geom_sf_text(data = results_plot, aes(label=label), size=2.8, col = "white") +
+    geom_sf_text(data = results, aes(label=label), size=2.8, col = "white") +
     labs(subtitle = "Text in squares shows month-day date and (number of detections) / (total lists)")
   }
   
