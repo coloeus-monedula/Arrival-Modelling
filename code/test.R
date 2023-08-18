@@ -98,6 +98,7 @@
 
 
 temp1 <- data.frame(other1 = 'A', other2 = 'B', 
-                    square = c('TLNE'), 
+                    grid_ref = c('TLNE','TL_Z', 'TL88', "SP11S"), 
                     stringsAsFactors = FALSE)
-temp1a<-gridref_to_coordinates(temp1,'square')
+temp1a<-gridref_to_coordinates(temp1,'grid_ref')
+temp1a

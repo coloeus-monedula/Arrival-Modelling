@@ -79,28 +79,7 @@ get_presenceabsence_data <- function(path,square_size, grid_ref_in="ALL", specie
   return(aggregated)
 }
 
-# given 1/0 data returns condensed list of total list length(count) and 1/0 for focal species
-# CURRENTLY DOESN'T WORK.
-# get_presenceabsence_focal <- function(data, species, exclude = "latitude, longitude, focal, user_code, sub_code, grid_ref, date", exclude_gridref = "tenkm"){
-#   
-#   exclude_cols <- paste(exclude, exclude_gridref, sep = ", ")
-#   
-#   data_longer <- pivot_longer(data = data, cols = !c(exclude_cols), names_to = "code2ltr", values_to = "presence")
-#   
-#   # remove rows with value 0
-#   data_longer <- subset(data_longer, presence == 1)
-#   
-#   aggregated <- data_longer %>% 
-#     group_by(sub_code, date) %>% 
-#     summarise(count = n(), 
-#               #if the wanted species is observed in the list or not
-#               presence = ifelse(any(tolower(code2ltr) == tolower(species)),
-#                                 1, 0)
-#     )
-#   
-#   return(aggregated)
-#   
-# }
+
 
 #' Add a 10km grid reference to a dataframe
 #' 
@@ -156,11 +135,6 @@ add_10km_gridref <- function(df, invar) {
 #' @param is_bird Set to FALSE by default. Set TRUE to search for bird species.
 #' @return Dataframe with columns: date and n (where n is count), sorted by date.
 get_interval_lists <- function(data_list, interval,id_code = "ALL", is_bird=FALSE) {
-  
-  # TODO: check id exists code currently still uses english name so commented out for now
-  # if (id_code!="ALL" && !check_id_exists(data_list, id_code, is_bird)) {
-  #   return(NA)
-  # }
   
   if (id_code == "ALL"){ 
     # just uses all the data
@@ -248,7 +222,7 @@ check_valid_thresholds <- function(dataset, square_area, min_threshold, min_mont
 
 
 # takes filtered dataset
-predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.00001, small_peak_threshold = 0.1) {
+predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.00001, small_peak_threshold = 0.1, to_graph= FALSE) {
   # convert to numerical day of the year
   bird$day <- yday(bird$date)
   
@@ -268,12 +242,25 @@ predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.0
   diffs <- diff(predicted$rate)
   #can't have diff for first value
   predicted$diff <- c(NA, diffs)
-  
+  #maximum reporting rate in curve
   max_rate <- max(predicted$rate)
   
   #when doing calculations ignore the initial downwards slope if any
   #also cuts out flat gradient ie. = 0
   first_positive <- which(predicted$diff>0)[1]
+  first_negative <- which(predicted$diff<0)[1]
+  
+  # checks to see if there is a significant enough peak in model by checking there is at least 1 positive and 1 negative gradient 
+  if (is.na(first_positive) || is.na(first_negative)) {
+    print(paste("Fitted GAM model for", bird$grid_ref[1],"has no peak"))
+    
+    if (to_graph) {
+      return(list(completed = FALSE,  predicted = predicted))
+    } else {
+      return(list(completed = FALSE))
+    }
+  }
+  
   sliced <- slice(predicted, first_positive:n())
   
   # change from increasing rate to just starting to decrease
@@ -289,8 +276,15 @@ predict_arrival <- function(bird, day_k = 20, count_k = 10, zero_threshold = 0.0
   
   arrival_date <- as.Date(arrival_start$day-1, origin = ymd(year, truncated=2))
   
-  #arrival start in num, arrival start as date, list num, detection count
-  results <- list(arrival_start$day, arrival_date, nrow(bird), sum(bird$presence))
+  
+  #output for displaying on a graph - see Fitting GAM to Year Data code
+  if (to_graph) {
+    results <- list(completed = TRUE, arrival_start = arrival_start, arrival_date = arrival_date, first_peak = first_peak, predicted = predicted)
+  } else {
+    #arrival start in num, arrival start as date, species count, detection count
+    results <- list(completed = TRUE, arrival_start$day, arrival_date, nrow(bird), sum(bird$presence))
+    
+  }
   return(results)
 }
 
@@ -309,6 +303,7 @@ get_basemap <- function(xmin, xmax, ymin, ymax, margin=0, level = 1) {
   uk_sp_crop <- st_crop(uk_sp, bbox)
   return(uk_sp_crop)
 }
+
 
 
 get_grid <- function(min_easting, max_easting, min_northing, max_northing, square_size) {
@@ -339,7 +334,7 @@ plot_coverage_date <- function(basemap, grid, results, show_text = TRUE) {
   geom_sf(data=basemap) +
   geom_sf(data = grid, fill=NA,inherit.aes = FALSE)+
   labs(title=paste("Arrival date estimations for",species,"in",year), x = "Longitude", y="Latitude", subtitle = paste("Earliest estimated arrival =", min(results$arrival_date), ", Latest estimated arrival =", max(results$arrival_date))) +
-  geom_sf(data=results, aes(fill=arrival_date)) +
+  geom_sf(data=results, aes(fill=arrival_date), alpha=0.8) +
   scale_fill_date(breaks=breaks_pretty(n=6), date_labels = "%m-%d", limits = c(min(results$arrival_date), max(results$arrival_date)), name = "Arrival date")
   
   
