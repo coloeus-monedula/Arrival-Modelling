@@ -29,13 +29,13 @@ verbose = TRUE
 
 
 ### Getting presence absence data for species
-# species_list <- get_presenceabsence_data(path = "data_in/RENEW_extract.csv", square_size = square_size, species = species, year = year)
-# gc()
-# species_list <- clean_data(species_list, n_threshold)
-
+species_list <- get_presenceabsence_data(path = "data_in/RENEW_extract.csv", square_size = square_size, species = species, year = year)
+gc()
+species_list <- clean_data(species_list, n_threshold)
+#
 # note: for bigger datasets, recommended to gather presence absence data, write it to csv and then reread it again - for some reason it runs faster
-# write_csv(species_list, "data_temp/chiffchaff_2022_10km.csv")
-species_list <-  read_csv("data_temp/chiffchaff_2022_10km.csv")
+# write_csv(species_list, "data_temp/cuckoo_2022_10km.csv")
+# species_list <-  read_csv("data_temp/cuckoo_2022_10km.csv")
 
 ### Running the GAM model for each grid reference
 squares_list <- sort(unique(species_list$grid_ref))
@@ -75,6 +75,9 @@ for (square_area in squares_list) {
 # removes excess na rows
 gam_results <- gam_results[rowSums(is.na(gam_results)) != ncol(gam_results),]
 
+if (nrow(gam_results) == 0) {
+  stop("No GAMs have been produced")
+}
 
 ### Generating geospatial features for plotting
 
@@ -129,7 +132,7 @@ predictions <- grid %>%
 predictions$predicted <- predict(smoothing_gam, predictions, type="response")
 predictions$arrival_date <- as.Date(predictions$predicted, origin = ymd(year, truncated=2))
 
-coverage_date_smoothed <- plot_coverage_date(basemap_plot, grid_plot, predictions, show_text = show_text)
+coverage_date_smoothed <- plot_coverage_date(basemap_plot, grid_plot, predictions, show_text = FALSE)
 print(coverage_date_smoothed)
 
 
